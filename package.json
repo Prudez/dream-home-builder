@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "concurrently -n SERVER,CLIENT -c blue,green \"npm run dev --prefix server\" \"npm run dev --prefix client\"",
-    "migrate": "npm run migrate --prefix server"
+    "migrate": "npm run migrate --prefix server",
+    "backfill-signals": "npm run backfill-signals --prefix server"
   },
   "devDependencies": {
     "concurrently": "^9.1.0"

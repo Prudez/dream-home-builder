@@ -42,3 +42,7 @@ export function createDesign(body) {
 export function createLead(body) {
   return request(contract.createLead.method, contract.createLead.path, body)
 }
+
+export function getSalesLeads() {
+  return request(contract.getSalesLeads.method, contract.getSalesLeads.path)
+}

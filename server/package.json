@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "node --watch index.js",
-    "migrate": "node scripts/migrate.js"
+    "migrate": "node scripts/migrate.js",
+    "backfill-signals": "node scripts/backfillSignals.js"
   },
   "dependencies": {
     "cors": "^2.8.5",

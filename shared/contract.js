@@ -119,6 +119,11 @@ export const contract = {
     path: '/api/catalog',
   },
 
+  getSalesLeads: {
+    method: 'GET',
+    path: '/api/sales/leads',
+  },
+
   createSession: {
     method: 'POST',
     path: '/api/sessions',

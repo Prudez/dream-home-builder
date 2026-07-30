@@ -7,6 +7,7 @@ import eventsRouter from './routes/events.js';
 import catalogRouter from './routes/catalog.js';
 import designsRouter from './routes/designs.js';
 import leadsRouter from './routes/leads.js';
+import salesRouter from './routes/sales.js';
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -24,6 +25,7 @@ app.use('/api/events', eventsRouter);
 app.use('/api/catalog', catalogRouter);
 app.use('/api/designs', designsRouter);
 app.use('/api/leads', leadsRouter);
+app.use('/api/sales', salesRouter);
 
 app.use((req, res) => {
   res.status(404).json(errorShape(ERROR_CODES.NOT_FOUND, 'Not found'));

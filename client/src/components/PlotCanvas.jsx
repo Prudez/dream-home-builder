@@ -13,6 +13,7 @@ import {
 import { T } from '../lib/theme.js'
 import { COLS, ROWS, computeCellSize, collides, clampToGrid } from '../lib/grid.js'
 import { roomCost, shellCost, totalCost, resolveFinish } from '../lib/cost.js'
+import { defaultFinishFor, defaultFurnitureFor } from '../../../shared/catalogDefaults.js'
 import { createDesign } from '../lib/api.js'
 import Palette from './Palette.jsx'
 import RoomBlock from './RoomBlock.jsx'
@@ -156,21 +157,6 @@ export default function PlotCanvas({
     }
   }, [total, activePack, logEvent])
 
-  function defaultFinishFor(roomDef) {
-    if (!roomDef.groupName) return { finishKey: null, colorIndex: 0 }
-    if (roomDef.groupName === 'floor' && activePack?.defaultFloorFinishKey) {
-      return { finishKey: activePack.defaultFloorFinishKey, colorIndex: activePack.defaultFloorColorIndex ?? 0 }
-    }
-    const group = finishesByGroup[roomDef.groupName]
-    if (!group || group.length === 0) return { finishKey: null, colorIndex: 0 }
-    return { finishKey: group[0].key, colorIndex: 0 }
-  }
-
-  function defaultFurnitureFor(typeKey) {
-    const list = furnitureByType[typeKey]
-    return list && list.length > 0 ? list[0].id : null
-  }
-
   function handleDragStart(event) {
     const data = event.active.data.current
     setDrag({ kind: data.kind, typeKey: data.typeKey, roomId: data.roomId, w: data.w, h: data.h, gx: 0, gy: 0, over: false, valid: false })
@@ -194,11 +180,11 @@ export default function PlotCanvas({
       if (isOver && valid) {
         const id = nextIdRef.current++
         const roomDef = roomsByKey[data.typeKey]
-        const { finishKey, colorIndex } = defaultFinishFor(roomDef)
-        const furnitureId = defaultFurnitureFor(data.typeKey)
+        const { finishKey, colorIndex } = defaultFinishFor(roomDef, activePack, finishesByGroup)
+        const furnitureId = defaultFurnitureFor(data.typeKey, furnitureByType)
         setPlaced((p) => [...p, { id, type: data.typeKey, x: target.x, y: target.y, w: data.w, h: data.h, floor, finishKey, colorIndex, furnitureId }])
         setSelected(id)
-        logEvent('room_added', { type: data.typeKey, w: data.w, h: data.h, floor })
+        logEvent('room_added', { roomId: id, type: data.typeKey, w: data.w, h: data.h, floor })
       }
     } else if (data.kind === 'room') {
       if (isOver && valid) {
