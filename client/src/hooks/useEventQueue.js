@@ -8,14 +8,25 @@ const FLUSH_SIZE_THRESHOLD = 20
 // In-memory only: events live in a ref for the life of the tab, never in
 // localStorage/sessionStorage. Flushes on an interval, on page hide (via
 // sendBeacon so the request survives unload), and once the queue is large.
-export function useEventQueue(sessionId) {
+//
+// `onHide` (optional) runs synchronously right before the page-hide flush,
+// so a caller can push one last logEvent() call (e.g. session_abandoned)
+// and be sure it's included — pushing to the queue any other way on hide
+// would land after this hook's own flush already fired, with no second
+// flush ever coming to send it.
+export function useEventQueue(sessionId, onHide) {
   const queueRef = useRef([])
   const startedAtRef = useRef(Date.now())
   const sessionIdRef = useRef(sessionId)
+  const onHideRef = useRef(onHide)
 
   useEffect(() => {
     sessionIdRef.current = sessionId
   }, [sessionId])
+
+  useEffect(() => {
+    onHideRef.current = onHide
+  }, [onHide])
 
   const flush = useCallback((useBeacon = false) => {
     const sid = sessionIdRef.current
@@ -53,16 +64,19 @@ export function useEventQueue(sessionId) {
 
   useEffect(() => {
     const interval = setInterval(() => flush(), FLUSH_INTERVAL_MS)
-    const onVisibilityChange = () => {
-      if (document.visibilityState === 'hidden') flush(true)
+    const onHidden = () => {
+      onHideRef.current?.()
+      flush(true)
     }
-    const onPageHide = () => flush(true)
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') onHidden()
+    }
     document.addEventListener('visibilitychange', onVisibilityChange)
-    window.addEventListener('pagehide', onPageHide)
+    window.addEventListener('pagehide', onHidden)
     return () => {
       clearInterval(interval)
       document.removeEventListener('visibilitychange', onVisibilityChange)
-      window.removeEventListener('pagehide', onPageHide)
+      window.removeEventListener('pagehide', onHidden)
     }
   }, [flush])
 

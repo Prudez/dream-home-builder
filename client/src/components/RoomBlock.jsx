@@ -64,13 +64,13 @@ export default function RoomBlock({ room, roomDef, finish, colorIndex, furniture
           }}
           style={{
             position: 'absolute',
-            right: -7,
-            bottom: -7,
-            width: 18,
-            height: 18,
+            right: -8,
+            bottom: -8,
+            width: 28,
+            height: 28,
             background: T.gold,
             border: `2px solid ${T.white}`,
-            borderRadius: 5,
+            borderRadius: 7,
             cursor: 'nwse-resize',
             touchAction: 'none',
             boxShadow: '0 1px 4px rgba(0,0,0,0.3)',

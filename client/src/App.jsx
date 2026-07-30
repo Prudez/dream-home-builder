@@ -23,7 +23,17 @@ export default function App() {
   const [matches, setMatches] = useState([])
   const [showReveal, setShowReveal] = useState(false)
 
-  const { logEvent } = useEventQueue(session?.id ?? null)
+  const stageRef = useRef('consent')
+  const designRef = useRef(null)
+  const abandonedLoggedRef = useRef(false)
+
+  const { logEvent } = useEventQueue(session?.id ?? null, () => {
+    // Reaching the reveal card is a completion, not an abandonment — only
+    // log if a session exists and the player never finished a design.
+    if (abandonedLoggedRef.current || !session || designRef.current) return
+    abandonedLoggedRef.current = true
+    logEvent('session_abandoned', { stage: stageRef.current })
+  })
   const loggedSessionStartRef = useRef(null)
 
   useEffect(() => {
@@ -31,6 +41,14 @@ export default function App() {
       .then(setCatalog)
       .catch((err) => setCatalogError(err.message))
   }, [])
+
+  useEffect(() => {
+    designRef.current = design
+  }, [design])
+
+  useEffect(() => {
+    stageRef.current = !session ? 'consent' : !shell ? 'shell' : 'building'
+  }, [session, shell])
 
   useEffect(() => {
     if (session && loggedSessionStartRef.current !== session.id) {

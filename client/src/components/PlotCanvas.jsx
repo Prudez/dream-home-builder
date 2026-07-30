@@ -15,11 +15,72 @@ import { COLS, ROWS, computeCellSize, collides, clampToGrid } from '../lib/grid.
 import { roomCost, shellCost, totalCost, resolveFinish } from '../lib/cost.js'
 import { defaultFinishFor, defaultFurnitureFor } from '../../../shared/catalogDefaults.js'
 import { createDesign } from '../lib/api.js'
+import { useIsMobile } from '../hooks/useIsMobile.js'
 import Palette from './Palette.jsx'
 import RoomBlock from './RoomBlock.jsx'
 import CostTicker from './CostTicker.jsx'
 import Picker from './Picker.jsx'
 import FinancingModal from './FinancingModal.jsx'
+
+// Mobile fallback for the drag-resize handle, which is too small a target
+// to drag precisely on touch. Reuses the exact same clamp/collision rules
+// as the pointer-drag resize path (see the resize useEffect below).
+function stepperButtonStyle(disabled) {
+  return {
+    width: 44,
+    height: 44,
+    borderRadius: 8,
+    border: `1.5px solid ${T.border}`,
+    background: T.white,
+    color: T.navy,
+    fontWeight: 900,
+    fontSize: 18,
+    cursor: disabled ? 'not-allowed' : 'pointer',
+    opacity: disabled ? 0.35 : 1,
+  }
+}
+
+function ResizeStepper({ room, roomDef, onStep }) {
+  const atMinW = room.w <= roomDef.minW
+  const atMaxW = room.w >= roomDef.maxW
+  const atMinH = room.h <= roomDef.minH
+  const atMaxH = room.h >= roomDef.maxH
+  return (
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        flexWrap: 'wrap',
+        gap: 16,
+        marginTop: 10,
+        padding: '10px 12px',
+        background: T.white,
+        border: `1.5px solid ${T.border}`,
+        borderRadius: 10,
+      }}
+    >
+      <div style={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', color: T.slate }}>Resize</div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <button type="button" disabled={atMinW} style={stepperButtonStyle(atMinW)} onClick={() => onStep(room.id, -1, 0)}>
+          −
+        </button>
+        <span style={{ fontSize: 12, fontWeight: 700, color: T.navy, minWidth: 34, textAlign: 'center' }}>W {room.w * 2}m</span>
+        <button type="button" disabled={atMaxW} style={stepperButtonStyle(atMaxW)} onClick={() => onStep(room.id, 1, 0)}>
+          +
+        </button>
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <button type="button" disabled={atMinH} style={stepperButtonStyle(atMinH)} onClick={() => onStep(room.id, 0, -1)}>
+          −
+        </button>
+        <span style={{ fontSize: 12, fontWeight: 700, color: T.navy, minWidth: 34, textAlign: 'center' }}>H {room.h * 2}m</span>
+        <button type="button" disabled={atMaxH} style={stepperButtonStyle(atMaxH)} onClick={() => onStep(room.id, 0, 1)}>
+          +
+        </button>
+      </div>
+    </div>
+  )
+}
 
 const FLOOR_NAMES = ['Ground floor', 'First floor', 'Second floor']
 
@@ -70,6 +131,8 @@ export default function PlotCanvas({
   const [showFinancing, setShowFinancing] = useState(false)
   const [finishing, setFinishing] = useState(false)
   const [finishError, setFinishError] = useState(null)
+
+  const isMobile = useIsMobile()
 
   const canvasRef = useRef(null)
   const nextIdRef = useRef(1)
@@ -243,6 +306,19 @@ export default function PlotCanvas({
     }
   }, [placed, cell, roomsByKey, logEvent])
 
+  // Mobile fallback for dragging the resize handle — same clamp/collision
+  // rules as the pointer-drag path above, applied in one-cell steps.
+  function stepResize(roomId, dw, dh) {
+    const room = placed.find((r) => r.id === roomId)
+    if (!room) return
+    const roomDef = roomsByKey[room.type]
+    const w = Math.max(roomDef.minW, Math.min(roomDef.maxW, Math.min(room.w + dw, COLS - room.x)))
+    const h = Math.max(roomDef.minH, Math.min(roomDef.maxH, Math.min(room.h + dh, ROWS - room.y)))
+    if ((w === room.w && h === room.h) || collides(room.x, room.y, w, h, room.floor, room.id, placed)) return
+    setPlaced((p) => p.map((x) => (x.id === room.id ? { ...x, w, h } : x)))
+    logEvent('room_resized', { roomId: room.id, type: room.type, w, h })
+  }
+
   function handleSelectFinish(finishKey) {
     const room = placed.find((r) => r.id === selected)
     if (!room) return
@@ -348,6 +424,7 @@ export default function PlotCanvas({
                       letterSpacing: '0.08em',
                       fontSize: 11,
                       padding: '8px 14px',
+                      minHeight: 44,
                       borderRadius: 6,
                       cursor: 'pointer',
                     }}
@@ -445,6 +522,7 @@ export default function PlotCanvas({
               style={{
                 marginTop: 4,
                 width: '100%',
+                minHeight: 44,
                 background: T.gold,
                 color: T.ink,
                 border: 'none',
@@ -464,6 +542,10 @@ export default function PlotCanvas({
               <pre style={{ color: T.danger, fontSize: 11, marginTop: 8, whiteSpace: 'pre-wrap' }}>
                 {JSON.stringify(finishError, null, 2)}
               </pre>
+            )}
+
+            {isMobile && selectedRoom && selectedRoomDef && (
+              <ResizeStepper room={selectedRoom} roomDef={selectedRoomDef} onStep={stepResize} />
             )}
 
             {selectedRoom && selectedRoomDef && (

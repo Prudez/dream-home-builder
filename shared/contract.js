@@ -6,6 +6,8 @@
 export const ERROR_CODES = {
   VALIDATION_ERROR: 'VALIDATION_ERROR',
   NOT_FOUND: 'NOT_FOUND',
+  FORBIDDEN: 'FORBIDDEN',
+  RATE_LIMITED: 'RATE_LIMITED',
   INTERNAL_ERROR: 'INTERNAL_ERROR',
 };
 
@@ -50,6 +52,7 @@ export const EVENT_TYPES = [
   'premium_crossed',
   'design_finished',
   'lead_submitted',
+  'session_abandoned',
 ];
 
 // Kenyan mobile number formats: +254/254/0 prefix followed by a Safaricom/

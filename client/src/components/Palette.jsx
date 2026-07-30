@@ -1,8 +1,9 @@
 import { useDraggable } from '@dnd-kit/core'
 import { T } from '../lib/theme.js'
 import { fmtKES } from '../lib/cost.js'
+import { useIsMobile } from '../hooks/useIsMobile.js'
 
-function PaletteChip({ room, disabled }) {
+function PaletteChip({ room, disabled, isMobile }) {
   const { attributes, listeners, setNodeRef } = useDraggable({
     id: `palette-${room.key}`,
     data: { kind: 'palette', typeKey: room.key, w: room.defaultW, h: room.defaultH },
@@ -19,15 +20,19 @@ function PaletteChip({ room, disabled }) {
         display: 'flex',
         alignItems: 'center',
         gap: 8,
+        minHeight: 44,
         background: T.white,
         border: `1.5px solid ${T.border}`,
         borderRadius: 8,
-        padding: '8px 12px',
-        marginBottom: 7,
+        padding: '10px 12px',
+        marginBottom: isMobile ? 0 : 7,
+        flexShrink: isMobile ? 0 : undefined,
+        width: isMobile ? 168 : undefined,
         cursor: disabled ? 'not-allowed' : 'grab',
         userSelect: 'none',
         touchAction: 'none',
         opacity: disabled ? 0.35 : 1,
+        boxSizing: 'border-box',
       }}
     >
       <span style={{ fontSize: 15 }}>{room.icon}</span>
@@ -38,8 +43,10 @@ function PaletteChip({ room, disabled }) {
 }
 
 export default function Palette({ rooms, floor }) {
+  const isMobile = useIsMobile()
+
   return (
-    <div style={{ flex: '1 1 225px', minWidth: 225 }}>
+    <div style={{ flex: isMobile ? '1 1 100%' : '1 1 225px', minWidth: isMobile ? '100%' : 225 }}>
       <p
         style={{
           fontSize: 11,
@@ -52,9 +59,17 @@ export default function Palette({ rooms, floor }) {
       >
         Drag onto the plot
       </p>
-      {rooms.map((room) => (
-        <PaletteChip key={room.key} room={room} disabled={room.groundOnly && floor !== 0} />
-      ))}
+      <div
+        style={
+          isMobile
+            ? { display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 4, WebkitOverflowScrolling: 'touch' }
+            : undefined
+        }
+      >
+        {rooms.map((room) => (
+          <PaletteChip key={room.key} room={room} disabled={room.groundOnly && floor !== 0} isMobile={isMobile} />
+        ))}
+      </div>
     </div>
   )
 }

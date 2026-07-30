@@ -13,23 +13,28 @@
       header {
         padding: 16px 24px;
       }
-      iframe {
-        display: block;
-        width: 100%;
-        height: 90vh;
-        border: none;
-        background: #f5f6f8;
-      }
     </style>
   </head>
   <body>
     <header>
-      <h1>Embed test</h1>
+      <h1>Embed test — local "WordPress page"</h1>
       <p>
-        This page proves the client can run inside an iframe, as it will on
-        bluefalconreal.com. It points at the local Vite dev server.
+        This page stands in for the WordPress page on bluefalconreal.com. It
+        embeds the exact snippet documented in docs/phases/phase-6.md,
+        pointed at the local production build served via `vite preview`
+        (not the dev server) — proving the real built bundle, not just dev
+        mode, embeds and plays correctly.
       </p>
     </header>
-    <iframe src="http://localhost:5173" title="Dream Home Builder"></iframe>
+
+    <!-- Dream Home Builder embed snippet — see docs/phases/phase-6.md §5 -->
+    <div style="position: relative; width: 100%; max-width: 900px; height: 80vh; margin: 0 auto;">
+      <iframe
+        src="http://localhost:4173"
+        title="Dream Home Builder"
+        loading="lazy"
+        style="position: absolute; inset: 0; width: 100%; height: 100%; border: 0;"
+      ></iframe>
+    </div>
   </body>
 </html>

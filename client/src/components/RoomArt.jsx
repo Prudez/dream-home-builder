@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import { INK } from '../lib/theme.js'
 import { shade, rand } from '../lib/svgHelpers.js'
 
@@ -153,7 +154,7 @@ function drawFurniture(type, W, H, tier, finishKey) {
 // `colorIndex` are already resolved (catalog data + the room's own
 // choice); `furnitureTierIndex` is the 0-based position of the room's
 // chosen catalog_furniture row within that room type's furniture list.
-export default function RoomArt({ room, roomDef, cell, finish, colorIndex, furnitureTierIndex }) {
+function RoomArt({ room, roomDef, cell, finish, colorIndex, furnitureTierIndex }) {
   const W = room.w * cell
   const H = room.h * cell
   const color = finish ? finish.colors[colorIndex]?.hex ?? finish.colors[0].hex : '#8B97A8'
@@ -319,3 +320,9 @@ export default function RoomArt({ room, roomDef, cell, finish, colorIndex, furni
     </svg>
   )
 }
+
+// Re-rendered per room on every PlotCanvas state change; PlotCanvas's
+// immutable setPlaced updates only replace the object for the room that
+// actually changed, so memoizing here skips redrawing every *other* room's
+// SVG (walls, textures, furniture) on each interaction.
+export default memo(RoomArt)

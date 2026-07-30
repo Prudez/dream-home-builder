@@ -48,7 +48,7 @@ House prose style in all docs: active voice, short paragraphs, no em dashes, no 
 - [x] **Phase 3 — Customization and rendering.** Finishes with colourways, furniture sets, SVG textures and furniture art, garden and pool rendering, style-pack defaults, financing prompt at the premium threshold. Event taxonomy finalized and documented in the contract. Closed 2026-07-29, see `docs/phases/phase-3.md`.
 - [x] **Phase 4 — Reveal and lead capture.** Server-computed profile label and matched listings. Consent gate at game start. Lead capture endpoint (WhatsApp number), design snapshot saved, shareable summary card. Closed 2026-07-30, see `docs/phases/phase-4.md`.
 - [x] **Phase 5 — Signals and integration.** Derived-signal job writing `lead_signals`. Sales view of leads with signals, either a small admin page or a feed into the PropIQ dashboard, which reads the same Supabase instance. Basic lead scoring. Closed 2026-07-30, see `docs/phases/phase-5.md`.
-- [ ] **Phase 6 — Polish and launch.** Mobile touch UX (larger resize targets, plus/minus size fallback), abandonment analytics, performance pass, rate limiting, env hardening, production iframe embed on bluefalconreal.com, launch checklist.
+- [x] **Phase 6 — Polish and launch.** Mobile touch UX (larger resize targets, plus/minus size fallback), abandonment analytics, performance pass, rate limiting, env hardening, production iframe embed on bluefalconreal.com, launch checklist. Closed 2026-07-30, see `docs/phases/phase-6.md`.
 
 ## Resume protocol
 

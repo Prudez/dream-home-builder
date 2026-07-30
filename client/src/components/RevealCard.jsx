@@ -1,5 +1,4 @@
 import { useMemo, useRef, useState } from 'react'
-import html2canvas from 'html2canvas'
 import { isKenyanPhone } from '../../../shared/contract.js'
 import { createLead } from '../lib/api.js'
 import { T } from '../lib/theme.js'
@@ -68,6 +67,9 @@ export default function RevealCard({ catalog, shell, design, matches, sessionId,
     if (!cardRef.current) return
     setSharing(true)
     try {
+      // Loaded on demand — most players never click Share, and html2canvas
+      // is the single biggest dependency in this bundle (~200KB).
+      const { default: html2canvas } = await import('html2canvas')
       const canvas = await html2canvas(cardRef.current, { backgroundColor: T.white, scale: 2 })
       canvas.toBlob((blob) => {
         if (!blob) return

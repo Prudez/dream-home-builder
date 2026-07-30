@@ -143,13 +143,14 @@ export default function Picker({ room, roomDef, finishes, furniture, activeFinis
                   onClick={() => onSelectColor(ci)}
                   title={c.name}
                   style={{
-                    width: 26,
-                    height: 26,
-                    borderRadius: 7,
+                    width: 44,
+                    height: 44,
+                    borderRadius: 10,
                     background: c.hex,
                     cursor: 'pointer',
                     border: `2.5px solid ${colorIndex === ci ? T.gold : T.border}`,
                     boxShadow: colorIndex === ci ? '0 2px 6px rgba(201,161,74,0.4)' : 'none',
+                    boxSizing: 'border-box',
                   }}
                 />
               ))}
@@ -172,7 +173,8 @@ function tabButtonStyle(active) {
     fontWeight: 800,
     textTransform: 'uppercase',
     letterSpacing: '0.08em',
-    padding: '6px 12px',
+    padding: '6px 14px',
+    minHeight: 44,
     cursor: 'pointer',
   }
 }
