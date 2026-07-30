@@ -2,9 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { T } from '../lib/theme.js'
 import { fmtKES } from '../lib/cost.js'
 
-const PREMIUM_THRESHOLD = 18000000
-
-export default function CostTicker({ total, roomCount, shellCostValue }) {
+export default function CostTicker({ total, roomCount, shellCostValue, premiumThreshold }) {
   const [displayCost, setDisplayCost] = useState(total)
   const rafRef = useRef(null)
 
@@ -21,7 +19,7 @@ export default function CostTicker({ total, roomCount, shellCostValue }) {
     return () => cancelAnimationFrame(rafRef.current)
   }, [total])
 
-  const premium = total >= PREMIUM_THRESHOLD
+  const premium = premiumThreshold != null && total >= premiumThreshold
 
   return (
     <div

@@ -5,6 +5,8 @@ import { errorShape, ERROR_CODES } from '../shared/contract.js';
 import sessionsRouter from './routes/sessions.js';
 import eventsRouter from './routes/events.js';
 import catalogRouter from './routes/catalog.js';
+import designsRouter from './routes/designs.js';
+import leadsRouter from './routes/leads.js';
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -20,6 +22,8 @@ app.get('/api/health', (req, res) => {
 app.use('/api/sessions', sessionsRouter);
 app.use('/api/events', eventsRouter);
 app.use('/api/catalog', catalogRouter);
+app.use('/api/designs', designsRouter);
+app.use('/api/leads', leadsRouter);
 
 app.use((req, res) => {
   res.status(404).json(errorShape(ERROR_CODES.NOT_FOUND, 'Not found'));

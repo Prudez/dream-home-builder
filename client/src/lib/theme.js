@@ -13,3 +13,12 @@ export const T = {
   danger: '#B4453A',
   border: '#DDE2E9',
 }
+
+// Fixed rendering ink for room art (walls, furniture line drawings) — not
+// catalogue data, so not fetched from the API. Derived from T.navy/white.
+export const INK = {
+  wall: '#26303B',
+  furnitureFill: 'rgba(255,255,255,0.85)',
+  furnitureDark: 'rgba(30,38,48,0.55)',
+  furnitureDark2: 'rgba(30,38,48,0.7)',
+}

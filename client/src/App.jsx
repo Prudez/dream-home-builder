@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { createSession, updateSessionShell, getCatalog } from './lib/api.js'
 import { useEventQueue } from './hooks/useEventQueue.js'
+import ConsentGate from './components/ConsentGate.jsx'
 import ShellStage from './components/ShellStage.jsx'
 import PlotCanvas from './components/PlotCanvas.jsx'
+import RevealCard from './components/RevealCard.jsx'
 import { T } from './lib/theme.js'
 
 function detectDevice() {
@@ -10,14 +12,16 @@ function detectDevice() {
 }
 
 export default function App() {
-  const [consent, setConsent] = useState(false)
   const [session, setSession] = useState(null)
   const [sessionError, setSessionError] = useState(null)
-  const [creatingSession, setCreatingSession] = useState(false)
 
   const [catalog, setCatalog] = useState(null)
   const [catalogError, setCatalogError] = useState(null)
   const [shell, setShell] = useState(null)
+
+  const [design, setDesign] = useState(null)
+  const [matches, setMatches] = useState([])
+  const [showReveal, setShowReveal] = useState(false)
 
   const { logEvent } = useEventQueue(session?.id ?? null)
   const loggedSessionStartRef = useRef(null)
@@ -36,15 +40,12 @@ export default function App() {
   }, [session, logEvent])
 
   async function startSession() {
-    setCreatingSession(true)
     setSessionError(null)
     try {
       const { session } = await createSession({ consent: true, device: detectDevice() })
       setSession(session)
     } catch (err) {
       setSessionError({ code: err.code, message: err.message })
-    } finally {
-      setCreatingSession(false)
     }
   }
 
@@ -59,30 +60,7 @@ export default function App() {
   }
 
   if (!session) {
-    return (
-      <main style={{ fontFamily: 'sans-serif', maxWidth: 480, margin: '40px auto', padding: '0 16px' }}>
-        <h1>Dream Home Builder</h1>
-        <p>Design your dream home in five minutes.</p>
-
-        <section style={{ marginTop: 24 }}>
-          <label style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} />
-            We use your answers to recommend properties. I consent.
-          </label>
-
-          <button
-            type="button"
-            disabled={!consent || creatingSession}
-            onClick={startSession}
-            style={{ marginTop: 12 }}
-          >
-            {creatingSession ? 'Starting…' : 'Start session'}
-          </button>
-
-          {sessionError && <pre style={{ color: T.danger }}>{JSON.stringify(sessionError, null, 2)}</pre>}
-        </section>
-      </main>
-    )
+    return <ConsentGate onStart={startSession} error={sessionError} />
   }
 
   if (catalogError) {
@@ -98,12 +76,35 @@ export default function App() {
   }
 
   return (
-    <PlotCanvas
-      rooms={catalog.rooms}
-      shells={catalog.shells}
-      shellKey={shell.shellKey}
-      floorsCount={shell.floors}
-      logEvent={logEvent}
-    />
+    <>
+      <PlotCanvas
+        rooms={catalog.rooms}
+        shells={catalog.shells}
+        shellKey={shell.shellKey}
+        floorsCount={shell.floors}
+        stylePacks={catalog.stylePacks}
+        stylePackKey={shell.stylePack}
+        finishes={catalog.finishes}
+        furniture={catalog.furniture}
+        logEvent={logEvent}
+        sessionId={session.id}
+        onDesignFinished={(newDesign, newMatches) => {
+          setDesign(newDesign)
+          setMatches(newMatches)
+          setShowReveal(true)
+        }}
+      />
+      {showReveal && design && (
+        <RevealCard
+          catalog={catalog}
+          shell={shell}
+          design={design}
+          matches={matches}
+          sessionId={session.id}
+          logEvent={logEvent}
+          onClose={() => setShowReveal(false)}
+        />
+      )}
+    </>
   )
 }

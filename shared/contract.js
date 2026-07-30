@@ -30,8 +30,10 @@ function isPlainObject(v) {
   return typeof v === 'object' && v !== null && !Array.isArray(v);
 }
 
-// Event taxonomy. test_event proved the pipe in Phase 1; Phase 2 adds the
-// shell and canvas interaction events logged by the batched event queue.
+// Event taxonomy. test_event proved the pipe in Phase 1; Phase 2 added the
+// shell and canvas interaction events; Phase 3 added customization and
+// financing events; Phase 4 adds the reveal/lead-capture events, all logged
+// by the batched event queue.
 export const EVENT_TYPES = [
   'test_event',
   'session_start',
@@ -41,7 +43,24 @@ export const EVENT_TYPES = [
   'room_resized',
   'room_removed',
   'floor_viewed',
+  'finish_changed',
+  'colour_changed',
+  'furniture_changed',
+  'financing_answered',
+  'premium_crossed',
+  'design_finished',
+  'lead_submitted',
 ];
+
+// Kenyan mobile number formats: +254/254/0 prefix followed by a Safaricom/
+// Airtel-style 7xxxxxxxx line or a 1xxxxxxxx line (newer number ranges).
+// Shared so the server's validation and the client's inline field feedback
+// never drift apart.
+export function isKenyanPhone(input) {
+  if (typeof input !== 'string') return false;
+  const stripped = input.replace(/[\s-]/g, '');
+  return /^(?:\+254|254|0)(7\d{8}|1\d{8})$/.test(stripped);
+}
 
 function isNonEmptyArray(v) {
   return Array.isArray(v) && v.length > 0;
@@ -60,6 +79,31 @@ function validateEventEntry(entry, index) {
   }
   if (entry.elapsedMs != null && !isNonNegativeInt(entry.elapsedMs)) {
     errors.push(`events[${index}].elapsedMs must be a non-negative integer when present`);
+  }
+  return errors;
+}
+
+function validateDesignRoomEntry(entry, index) {
+  const errors = [];
+  if (!isPlainObject(entry)) {
+    return [`rooms[${index}] must be an object`];
+  }
+  if (!isNonEmptyString(entry.type)) {
+    errors.push(`rooms[${index}].type must be a non-empty string`);
+  }
+  for (const field of ['x', 'y', 'w', 'h', 'floor']) {
+    if (!isNonNegativeInt(entry[field])) {
+      errors.push(`rooms[${index}].${field} must be a non-negative integer`);
+    }
+  }
+  if (entry.finishKey != null && !isNonEmptyString(entry.finishKey)) {
+    errors.push(`rooms[${index}].finishKey must be a string or null`);
+  }
+  if (!isNonNegativeInt(entry.colorIndex)) {
+    errors.push(`rooms[${index}].colorIndex must be a non-negative integer`);
+  }
+  if (entry.furnitureId != null && !isPositiveInt(entry.furnitureId)) {
+    errors.push(`rooms[${index}].furnitureId must be a positive integer or null`);
   }
   return errors;
 }
@@ -135,6 +179,55 @@ export const contract = {
         errors.push('events must be a non-empty array');
       } else {
         body.events.forEach((entry, i) => errors.push(...validateEventEntry(entry, i)));
+      }
+      return errors;
+    },
+  },
+
+  createDesign: {
+    method: 'POST',
+    path: '/api/designs',
+    // Fires once, when the player clicks "Finish my design". The server
+    // recomputes total/profile/matches from the submitted rooms rather than
+    // trusting any client-sent total.
+    validateRequest(body) {
+      const errors = [];
+      if (!isPlainObject(body)) return ['body must be an object'];
+      if (!isNonEmptyString(body.sessionId)) {
+        errors.push('sessionId must be a non-empty string');
+      }
+      if (!isNonEmptyString(body.shellKey)) {
+        errors.push('shellKey must be a non-empty string');
+      }
+      if (!isNonEmptyString(body.stylePack)) {
+        errors.push('stylePack must be a non-empty string');
+      }
+      if (!isPositiveInt(body.floors)) {
+        errors.push('floors must be a positive integer');
+      }
+      if (!isNonEmptyArray(body.rooms)) {
+        errors.push('rooms must be a non-empty array');
+      } else {
+        body.rooms.forEach((entry, i) => errors.push(...validateDesignRoomEntry(entry, i)));
+      }
+      return errors;
+    },
+  },
+
+  createLead: {
+    method: 'POST',
+    path: '/api/leads',
+    validateRequest(body) {
+      const errors = [];
+      if (!isPlainObject(body)) return ['body must be an object'];
+      if (!isNonEmptyString(body.sessionId)) {
+        errors.push('sessionId must be a non-empty string');
+      }
+      if (!isNonEmptyString(body.designId)) {
+        errors.push('designId must be a non-empty string');
+      }
+      if (!isNonEmptyString(body.whatsapp) || !isKenyanPhone(body.whatsapp)) {
+        errors.push('whatsapp must be a valid Kenyan phone number');
       }
       return errors;
     },

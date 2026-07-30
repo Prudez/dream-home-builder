@@ -12,10 +12,13 @@ import {
 } from '@dnd-kit/core'
 import { T } from '../lib/theme.js'
 import { COLS, ROWS, computeCellSize, collides, clampToGrid } from '../lib/grid.js'
-import { roomCost, shellCost, totalCost } from '../lib/cost.js'
+import { roomCost, shellCost, totalCost, resolveFinish } from '../lib/cost.js'
+import { createDesign } from '../lib/api.js'
 import Palette from './Palette.jsx'
 import RoomBlock from './RoomBlock.jsx'
 import CostTicker from './CostTicker.jsx'
+import Picker from './Picker.jsx'
+import FinancingModal from './FinancingModal.jsx'
 
 const FLOOR_NAMES = ['Ground floor', 'First floor', 'Second floor']
 
@@ -45,19 +48,63 @@ function computeTarget(event, canvasRect, cell, w, h) {
   return { target: clampToGrid(gx, gy, w, h), isOver }
 }
 
-export default function PlotCanvas({ rooms, shells, shellKey, floorsCount, logEvent }) {
+export default function PlotCanvas({
+  rooms,
+  shells,
+  shellKey,
+  floorsCount,
+  stylePacks,
+  stylePackKey,
+  finishes,
+  furniture,
+  logEvent,
+  sessionId,
+  onDesignFinished,
+}) {
   const [placed, setPlaced] = useState([])
   const [floor, setFloor] = useState(0)
   const [selected, setSelected] = useState(null)
   const [cell, setCell] = useState(40)
   const [drag, setDrag] = useState(null)
+  const [showFinancing, setShowFinancing] = useState(false)
+  const [finishing, setFinishing] = useState(false)
+  const [finishError, setFinishError] = useState(null)
 
   const canvasRef = useRef(null)
   const nextIdRef = useRef(1)
   const resizeRef = useRef(null)
+  const financingAskedRef = useRef(false)
 
   const roomsByKey = useMemo(() => Object.fromEntries(rooms.map((r) => [r.key, r])), [rooms])
   const shellsByKey = useMemo(() => Object.fromEntries(shells.map((s) => [s.key, s])), [shells])
+  const stylePacksByKey = useMemo(() => Object.fromEntries(stylePacks.map((p) => [p.key, p])), [stylePacks])
+  const activePack = stylePacksByKey[stylePackKey]
+
+  const finishesByGroup = useMemo(() => {
+    const map = {}
+    for (const f of finishes) {
+      if (!map[f.groupName]) map[f.groupName] = []
+      map[f.groupName].push(f)
+    }
+    return map
+  }, [finishes])
+  const finishesByGroupKey = useMemo(() => {
+    const map = {}
+    for (const [group, list] of Object.entries(finishesByGroup)) {
+      map[group] = Object.fromEntries(list.map((f) => [f.key, f]))
+    }
+    return map
+  }, [finishesByGroup])
+
+  const furnitureByType = useMemo(() => {
+    const map = {}
+    for (const f of furniture) {
+      if (!map[f.roomType]) map[f.roomType] = []
+      map[f.roomType].push(f)
+    }
+    return map
+  }, [furniture])
+  const furnitureById = useMemo(() => Object.fromEntries(furniture.map((f) => [f.id, f])), [furniture])
 
   const { setNodeRef: setDroppableRef } = useDroppable({ id: 'plot' })
   // Stable identity across renders. A fresh callback-ref function every
@@ -74,7 +121,9 @@ export default function PlotCanvas({ rooms, shells, shellKey, floorsCount, logEv
 
   // PointerSensor covers modern browsers (mouse, touch, pen via one unified
   // event model). Mouse/TouchSensor are additional fallbacks for input
-  // paths that only synthesize legacy mouse/touch events.
+  // paths that only synthesize legacy mouse/touch events. KeyboardSensor
+  // covers accessible drag: focus a draggable, Space to pick up, arrow
+  // keys to move, Space to drop, Escape to cancel.
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: ACTIVATION_CONSTRAINT }),
     useSensor(MouseSensor, { activationConstraint: ACTIVATION_CONSTRAINT }),
@@ -94,8 +143,33 @@ export default function PlotCanvas({ rooms, shells, shellKey, floorsCount, logEv
   }, [])
 
   const visibleRooms = placed.filter((r) => r.floor === floor)
-  const total = totalCost(placed, roomsByKey, shellsByKey, shellKey)
+  const total = totalCost(placed, roomsByKey, finishesByGroupKey, furnitureById, shellsByKey, shellKey)
   const shellCostValue = shellCost(shellsByKey, shellKey)
+
+  useEffect(() => {
+    if (!activePack) return
+    const threshold = Number(activePack.premiumThreshold)
+    if (!financingAskedRef.current && total >= threshold) {
+      financingAskedRef.current = true
+      setShowFinancing(true)
+      logEvent('premium_crossed', { total, threshold })
+    }
+  }, [total, activePack, logEvent])
+
+  function defaultFinishFor(roomDef) {
+    if (!roomDef.groupName) return { finishKey: null, colorIndex: 0 }
+    if (roomDef.groupName === 'floor' && activePack?.defaultFloorFinishKey) {
+      return { finishKey: activePack.defaultFloorFinishKey, colorIndex: activePack.defaultFloorColorIndex ?? 0 }
+    }
+    const group = finishesByGroup[roomDef.groupName]
+    if (!group || group.length === 0) return { finishKey: null, colorIndex: 0 }
+    return { finishKey: group[0].key, colorIndex: 0 }
+  }
+
+  function defaultFurnitureFor(typeKey) {
+    const list = furnitureByType[typeKey]
+    return list && list.length > 0 ? list[0].id : null
+  }
 
   function handleDragStart(event) {
     const data = event.active.data.current
@@ -119,7 +193,10 @@ export default function PlotCanvas({ rooms, shells, shellKey, floorsCount, logEv
     if (data.kind === 'palette') {
       if (isOver && valid) {
         const id = nextIdRef.current++
-        setPlaced((p) => [...p, { id, type: data.typeKey, x: target.x, y: target.y, w: data.w, h: data.h, floor }])
+        const roomDef = roomsByKey[data.typeKey]
+        const { finishKey, colorIndex } = defaultFinishFor(roomDef)
+        const furnitureId = defaultFurnitureFor(data.typeKey)
+        setPlaced((p) => [...p, { id, type: data.typeKey, x: target.x, y: target.y, w: data.w, h: data.h, floor, finishKey, colorIndex, furnitureId }])
         setSelected(id)
         logEvent('room_added', { type: data.typeKey, w: data.w, h: data.h, floor })
       }
@@ -180,7 +257,69 @@ export default function PlotCanvas({ rooms, shells, shellKey, floorsCount, logEv
     }
   }, [placed, cell, roomsByKey, logEvent])
 
+  function handleSelectFinish(finishKey) {
+    const room = placed.find((r) => r.id === selected)
+    if (!room) return
+    setPlaced((p) => p.map((r) => (r.id === selected ? { ...r, finishKey, colorIndex: 0 } : r)))
+    logEvent('finish_changed', { roomId: selected, type: room.type, finishKey })
+  }
+
+  function handleSelectColor(colorIndex) {
+    const room = placed.find((r) => r.id === selected)
+    if (!room) return
+    setPlaced((p) => p.map((r) => (r.id === selected ? { ...r, colorIndex } : r)))
+    logEvent('colour_changed', { roomId: selected, type: room.type, finishKey: room.finishKey, colorIndex })
+  }
+
+  function handleSelectFurniture(furnitureId) {
+    const room = placed.find((r) => r.id === selected)
+    if (!room) return
+    setPlaced((p) => p.map((r) => (r.id === selected ? { ...r, furnitureId } : r)))
+    logEvent('furniture_changed', { roomId: selected, type: room.type, furnitureId })
+  }
+
+  function handleFinancingAnswer(answer) {
+    setShowFinancing(false)
+    logEvent('financing_answered', { answer })
+  }
+
+  async function handleFinish() {
+    logEvent('design_finished', { roomCount: placed.length, total })
+    setFinishing(true)
+    setFinishError(null)
+    try {
+      const roomsPayload = placed.map((r) => ({
+        type: r.type,
+        x: r.x,
+        y: r.y,
+        w: r.w,
+        h: r.h,
+        floor: r.floor,
+        finishKey: r.finishKey ?? null,
+        colorIndex: r.colorIndex ?? 0,
+        furnitureId: r.furnitureId ?? null,
+      }))
+      const { design, matches } = await createDesign({
+        sessionId,
+        shellKey,
+        stylePack: stylePackKey,
+        floors: floorsCount,
+        rooms: roomsPayload,
+      })
+      onDesignFinished(design, matches)
+    } catch (err) {
+      setFinishError({ code: err.code, message: err.message })
+    } finally {
+      setFinishing(false)
+    }
+  }
+
   const canvasBorderColor = drag ? (drag.valid ? T.green : drag.over ? T.danger : '#D5DBE4') : '#D5DBE4'
+  const selectedRoom = placed.find((r) => r.id === selected) ?? null
+  const selectedRoomDef = selectedRoom ? roomsByKey[selectedRoom.type] : null
+  const selectedFinishes = selectedRoomDef ? finishesByGroup[selectedRoomDef.groupName] ?? [] : []
+  const selectedFurniture = selectedRoom ? furnitureByType[selectedRoom.type] ?? [] : []
+  const selectedActiveFinish = selectedRoom && selectedRoomDef ? resolveFinish(selectedRoom, selectedRoomDef, finishesByGroupKey) : null
 
   return (
     <DndContext
@@ -192,7 +331,12 @@ export default function PlotCanvas({ rooms, shells, shellKey, floorsCount, logEv
       onDragCancel={handleDragCancel}
     >
       <div style={{ background: T.paper, minHeight: '100vh' }}>
-        <CostTicker total={total} roomCount={placed.length} shellCostValue={shellCostValue} />
+        <CostTicker
+          total={total}
+          roomCount={placed.length}
+          shellCostValue={shellCostValue}
+          premiumThreshold={activePack ? Number(activePack.premiumThreshold) : null}
+        />
 
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 20, padding: '18px 24px', maxWidth: 1140, margin: '0 auto' }}>
           <Palette rooms={rooms} floor={floor} />
@@ -264,19 +408,29 @@ export default function PlotCanvas({ rooms, shells, shellKey, floorsCount, logEv
                 </div>
               )}
 
-              {visibleRooms.map((r) => (
-                <RoomBlock
-                  key={r.id}
-                  room={r}
-                  roomDef={roomsByKey[r.type]}
-                  cell={cell}
-                  selected={selected === r.id}
-                  isDragging={drag?.kind === 'room' && drag.roomId === r.id}
-                  onSelect={setSelected}
-                  onResizeStart={handleResizeStart}
-                  cost={roomCost(r, roomsByKey)}
-                />
-              ))}
+              {visibleRooms.map((r) => {
+                const roomDef = roomsByKey[r.type]
+                const finish = resolveFinish(r, roomDef, finishesByGroupKey)
+                const colorIndex = r.colorIndex ?? 0
+                const furnList = furnitureByType[r.type] ?? []
+                const furnitureTierIndex = Math.max(0, furnList.findIndex((f) => f.id === r.furnitureId))
+                return (
+                  <RoomBlock
+                    key={r.id}
+                    room={r}
+                    roomDef={roomDef}
+                    finish={finish}
+                    colorIndex={colorIndex}
+                    furnitureTierIndex={furnitureTierIndex}
+                    cell={cell}
+                    selected={selected === r.id}
+                    isDragging={drag?.kind === 'room' && drag.roomId === r.id}
+                    onSelect={setSelected}
+                    onResizeStart={handleResizeStart}
+                    cost={roomCost(r, roomsByKey, finishesByGroupKey, furnitureById)}
+                  />
+                )
+              })}
 
               {drag && drag.over && (
                 <div
@@ -297,9 +451,53 @@ export default function PlotCanvas({ rooms, shells, shellKey, floorsCount, logEv
             <p style={{ fontSize: 11, color: T.slate, marginTop: 8 }}>
               Plot: {COLS * 2}m × {ROWS * 2}m · each square = 2m × 2m
             </p>
+
+            <button
+              type="button"
+              disabled={placed.length === 0 || finishing}
+              onClick={handleFinish}
+              style={{
+                marginTop: 4,
+                width: '100%',
+                background: T.gold,
+                color: T.ink,
+                border: 'none',
+                fontWeight: 800,
+                textTransform: 'uppercase',
+                letterSpacing: '0.08em',
+                fontSize: 12,
+                padding: '12px 20px',
+                borderRadius: 6,
+                cursor: placed.length === 0 || finishing ? 'not-allowed' : 'pointer',
+                opacity: placed.length === 0 || finishing ? 0.4 : 1,
+              }}
+            >
+              {finishing ? 'Saving…' : 'Finish my design →'}
+            </button>
+            {finishError && (
+              <pre style={{ color: T.danger, fontSize: 11, marginTop: 8, whiteSpace: 'pre-wrap' }}>
+                {JSON.stringify(finishError, null, 2)}
+              </pre>
+            )}
+
+            {selectedRoom && selectedRoomDef && (
+              <Picker
+                room={selectedRoom}
+                roomDef={selectedRoomDef}
+                finishes={selectedFinishes}
+                furniture={selectedFurniture}
+                activeFinish={selectedActiveFinish}
+                colorIndex={selectedRoom.colorIndex ?? 0}
+                onSelectFinish={handleSelectFinish}
+                onSelectColor={handleSelectColor}
+                onSelectFurniture={handleSelectFurniture}
+              />
+            )}
           </div>
         </div>
       </div>
+
+      {showFinancing && activePack && <FinancingModal threshold={Number(activePack.premiumThreshold)} onAnswer={handleFinancingAnswer} />}
     </DndContext>
   )
 }

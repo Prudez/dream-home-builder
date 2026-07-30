@@ -34,3 +34,11 @@ export function updateSessionShell(sessionId, body) {
 export function logEvents(sessionId, events) {
   return request(contract.logEvent.method, contract.logEvent.path, { sessionId, events })
 }
+
+export function createDesign(body) {
+  return request(contract.createDesign.method, contract.createDesign.path, body)
+}
+
+export function createLead(body) {
+  return request(contract.createLead.method, contract.createLead.path, body)
+}

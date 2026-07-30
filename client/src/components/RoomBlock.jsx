@@ -1,8 +1,9 @@
 import { useDraggable } from '@dnd-kit/core'
 import { T } from '../lib/theme.js'
 import { fmtKES } from '../lib/cost.js'
+import RoomArt from './RoomArt.jsx'
 
-export default function RoomBlock({ room, roomDef, cell, selected, isDragging, onSelect, onResizeStart, cost }) {
+export default function RoomBlock({ room, roomDef, finish, colorIndex, furnitureTierIndex, cell, selected, isDragging, onSelect, onResizeStart, cost }) {
   const { attributes, listeners, setNodeRef } = useDraggable({
     id: `room-${room.id}`,
     data: { kind: 'room', roomId: room.id, w: room.w, h: room.h },
@@ -24,21 +25,21 @@ export default function RoomBlock({ room, roomDef, cell, selected, isDragging, o
         width: room.w * cell - 3,
         height: room.h * cell - 3,
         margin: 1.5,
-        borderRadius: 6,
+        borderRadius: roomDef.groupName === 'garden' ? 14 : 6,
         cursor: 'grab',
         userSelect: 'none',
         touchAction: 'none',
         opacity: isDragging ? 0.35 : 1,
-        background: T.white,
-        border: `1.5px solid ${T.border}`,
         boxShadow: selected
           ? `0 0 0 2.5px ${T.gold}, 0 4px 10px rgba(10,30,60,0.2)`
           : '0 2px 6px rgba(10,30,60,0.12)',
         display: 'flex',
         alignItems: 'flex-end',
         justifyContent: 'center',
+        overflow: 'hidden',
       }}
     >
+      <RoomArt room={room} roomDef={roomDef} cell={cell} finish={finish} colorIndex={colorIndex} furnitureTierIndex={furnitureTierIndex} />
       <span
         style={{
           background: 'rgba(10,30,60,0.75)',
