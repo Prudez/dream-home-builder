@@ -49,6 +49,7 @@ House prose style in all docs: active voice, short paragraphs, no em dashes, no 
 - [x] **Phase 4 — Reveal and lead capture.** Server-computed profile label and matched listings. Consent gate at game start. Lead capture endpoint (WhatsApp number), design snapshot saved, shareable summary card. Closed 2026-07-30, see `docs/phases/phase-4.md`.
 - [x] **Phase 5 — Signals and integration.** Derived-signal job writing `lead_signals`. Sales view of leads with signals, either a small admin page or a feed into the PropIQ dashboard, which reads the same Supabase instance. Basic lead scoring. Closed 2026-07-30, see `docs/phases/phase-5.md`.
 - [x] **Phase 6 — Polish and launch.** Mobile touch UX (larger resize targets, plus/minus size fallback), abandonment analytics, performance pass, rate limiting, env hardening, production iframe embed on bluefalconreal.com, launch checklist. Closed 2026-07-30, see `docs/phases/phase-6.md`.
+- [x] **Phase 7 — Balcony room and front elevation.** New Balcony room type (upper-floors-only, finishes, furniture, RoomArt rendering, an outdoor-space lifestyle signal). Front-elevation SVG render on the reveal card, deriving floor widths from placed rooms and roof shape from the style pack. Closed 2026-08-04, see `docs/phases/phase-7.md`.
 
 ## Resume protocol
 

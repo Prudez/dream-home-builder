@@ -44,6 +44,11 @@ function PaletteChip({ room, disabled, isMobile }) {
 
 export default function Palette({ rooms, floor }) {
   const isMobile = useIsMobile()
+  // upperOnly rooms (e.g. balcony) are absent from the ground-floor palette
+  // entirely, unlike groundOnly rooms which stay visible but disabled —
+  // a balcony can never be built on the ground floor, so offering it there
+  // (even greyed out) would be misleading.
+  const visibleRooms = rooms.filter((room) => !(room.upperOnly && floor === 0))
 
   return (
     <div style={{ flex: isMobile ? '1 1 100%' : '1 1 225px', minWidth: isMobile ? '100%' : 225 }}>
@@ -66,7 +71,7 @@ export default function Palette({ rooms, floor }) {
             : undefined
         }
       >
-        {rooms.map((room) => (
+        {visibleRooms.map((room) => (
           <PaletteChip key={room.key} room={room} disabled={room.groundOnly && floor !== 0} isMobile={isMobile} />
         ))}
       </div>

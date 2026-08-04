@@ -106,6 +106,16 @@ function drawFurniture(type, W, H, tier, finishKey) {
     els.push(<circle key="pl2" cx={W * 0.82} cy={H * 0.5} r={Math.min(W, H) * 0.08} fill="#3A5F44" />)
   }
 
+  // Balcony Lounge tier only — the base "Railing" furniture tier is the
+  // always-drawn balustrade in RoomArt's main body, not furniture art.
+  if (type === 'balcony' && set >= 1 && W > 40 && H > 30) {
+    els.push(<circle key="bt" cx={W * 0.5} cy={H * 0.55} r={Math.min(W, H) * 0.16} fill={F} stroke={FD} strokeWidth={1.5} />)
+    els.push(<circle key="bc1" cx={W * 0.28} cy={H * 0.4} r={4} fill={FD} />)
+    els.push(<circle key="bc2" cx={W * 0.72} cy={H * 0.4} r={4} fill={FD} />)
+    els.push(<circle key="bp1" cx={W * 0.12} cy={H * 0.85} r={5} fill="#4E7A57" />)
+    els.push(<circle key="bp2" cx={W * 0.88} cy={H * 0.85} r={5} fill="#4E7A57" />)
+  }
+
   if (type === 'garden' && W > 70 && H > 60) {
     if (set === 1) {
       els.push(<circle key="gt" cx={W * 0.5} cy={H * 0.55} r={Math.min(W, H) * 0.11} fill="rgba(250,248,240,0.9)" stroke={FD} strokeWidth={1.5} />)
@@ -282,6 +292,20 @@ function RoomArt({ room, roomDef, cell, finish, colorIndex, furnitureTierIndex }
       for (let i = 0; i < (W * H) / 40; i++) {
         els.push(<circle key={'gr' + i} cx={r() * W} cy={r() * H} r={0.8 + r() * 1.4} fill={r() > 0.5 ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.2)'} />)
       }
+    }
+  }
+
+  if (room.type === 'balcony') {
+    // Railing is the "included" furniture tier (always present, drawn here
+    // rather than in drawFurniture), a balustrade around the balcony's
+    // outer edge with baluster posts along the edge facing away from the
+    // building. Balconies are outdoor/non-indoor rooms (roomDef.indoor is
+    // false), so no wall/window is drawn for them below — this is their
+    // only edge treatment.
+    const postGap = Math.max(9, cell / 3.4)
+    els.push(<rect key="rail-edge" x={1} y={1} width={W - 2} height={H - 2} fill="none" stroke={INK.wall} strokeWidth={2} rx={4} />)
+    for (let x = postGap / 2; x < W; x += postGap) {
+      els.push(<line key={'post' + x} x1={x} y1={1} x2={x} y2={6} stroke={INK.wall} strokeWidth={1.5} />)
     }
   }
 

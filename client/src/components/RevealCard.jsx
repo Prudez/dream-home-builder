@@ -5,6 +5,7 @@ import { T } from '../lib/theme.js'
 import { fmtKES, resolveFinish } from '../lib/cost.js'
 import { COLS, ROWS } from '../lib/grid.js'
 import RoomArt from './RoomArt.jsx'
+import ElevationView from './ElevationView.jsx'
 
 const MINI_CELL = 9
 
@@ -126,6 +127,28 @@ export default function RevealCard({ catalog, shell, design, matches, sessionId,
         </div>
 
         <div style={{ padding: '18px 24px 22px' }}>
+          <p
+            style={{
+              fontSize: 10.5,
+              letterSpacing: '0.15em',
+              textTransform: 'uppercase',
+              fontWeight: 800,
+              color: T.slate,
+              textAlign: 'center',
+              margin: '0 0 8px',
+            }}
+          >
+            Front elevation
+          </p>
+          <div style={{ marginBottom: 18 }}>
+            <ElevationView
+              rooms={snapshot.rooms}
+              floors={snapshot.floors}
+              stylePackKey={snapshot.stylePack}
+              wallColor={stylePacksByKey[snapshot.stylePack]?.swatch?.[0]}
+            />
+          </div>
+
           <div
             style={{
               position: 'relative',

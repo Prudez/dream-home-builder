@@ -8,7 +8,8 @@ export async function loadCatalog() {
       `SELECT key, name, icon, per_cell_price AS "perCellPrice",
               default_w AS "defaultW", default_h AS "defaultH",
               min_w AS "minW", min_h AS "minH", max_w AS "maxW", max_h AS "maxH",
-              group_name AS "groupName", ground_only AS "groundOnly", indoor
+              group_name AS "groupName", ground_only AS "groundOnly", indoor,
+              upper_only AS "upperOnly"
        FROM dreamhome.catalog_rooms ORDER BY sort_order`
     ),
     query(

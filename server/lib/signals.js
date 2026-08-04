@@ -150,6 +150,9 @@ export function computeLeadSignals({ design, events, catalog }) {
   const furnishedDsq = furnPick('dsq', 1);
   if (furnishedDsq) signals.push({ key: 'practical_signal', label: 'Practical signal', value: 'Furnished DSQ → live-in staff or rental income plan' });
 
+  const hasBalcony = has('balcony');
+  if (hasBalcony) signals.push({ key: 'outdoor_priority', label: 'Lifestyle', value: 'Balcony placed → outdoor space priority' });
+
   furnitureSpend = rooms.reduce((s, r) => {
     const f = r.furnitureId != null ? furnitureById[r.furnitureId] : null;
     return s + (f ? Number(f.cost) : 0);
