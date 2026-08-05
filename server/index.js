@@ -19,6 +19,9 @@ const PORT = process.env.PORT || 4000;
 // The dev client origin plus the real embed origins. ALLOWED_ORIGINS
 // (comma-separated) overrides this list entirely when set, so a single env
 // var covers both "just add bluefalconreal.com" and "lock dev out of prod".
+// An entry may contain `*` as a single-segment wildcard (e.g.
+// `https://*.vercel.app` to cover every preview deployment) — see
+// originMatches below.
 const DEFAULT_ALLOWED_ORIGINS = [
   process.env.CLIENT_ORIGIN || 'http://localhost:5173',
   'https://bluefalconreal.com',
@@ -28,11 +31,27 @@ const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS
   ? process.env.ALLOWED_ORIGINS.split(',').map((o) => o.trim())
   : DEFAULT_ALLOWED_ORIGINS;
 
+// Exact match unless the pattern contains `*`, in which case each `*`
+// matches any run of characters within the origin (e.g. a Vercel preview
+// subdomain). `*` is escaped-then-reinserted so the rest of the pattern is
+// matched literally — a malformed env var can't accidentally turn into a
+// broader regex than intended.
+function originMatches(origin, pattern) {
+  if (!pattern.includes('*')) return origin === pattern;
+  const escaped = pattern
+    .split('*')
+    .map((part) => part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+    .join('.*');
+  return new RegExp(`^${escaped}$`).test(origin);
+}
+
 app.use(
   cors({
     origin(origin, callback) {
       // No Origin header (curl, server-to-server, same-origin) — allow.
-      if (!origin || ALLOWED_ORIGINS.includes(origin)) return callback(null, true);
+      if (!origin || ALLOWED_ORIGINS.some((pattern) => originMatches(origin, pattern))) {
+        return callback(null, true);
+      }
       const err = new Error(`Origin ${origin} is not allowed`);
       err.code = 'CORS_NOT_ALLOWED';
       callback(err);
