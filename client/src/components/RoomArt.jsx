@@ -160,6 +160,91 @@ function drawFurniture(type, W, H, tier, finishKey) {
   return els
 }
 
+// Toggleable furniture add-ons (Phase 9). Independent of `tier` — a room
+// can be on the base "Essentials" tier with every add-on switched on, or
+// the top tier with none. Each addon has its own size threshold so it
+// degrades gracefully at very small room sizes, the same convention
+// drawFurniture already uses.
+function drawAddons(type, W, H, addons) {
+  if (!addons || addons.length === 0) return []
+  const has = (k) => addons.includes(k)
+  const FD = INK.furnitureDark
+  const FD2 = INK.furnitureDark2
+  const els = []
+
+  if (type === 'living') {
+    if (has('rug') && W > 50 && H > 45) els.push(<rect key="ad-rug" x={W * 0.06} y={H * 0.62} width={W * 0.3} height={H * 0.3} rx={5} fill="rgba(201,161,74,0.3)" />)
+    if (has('tv_console') && W > 55) els.push(<rect key="ad-tv" x={W * 0.05} y={H * 0.04} width={W * 0.26} height={H * 0.07} rx={3} fill={FD2} />)
+    if (has('wall_art') && W > 55) els.push(<rect key="ad-art" x={W * 0.58} y={H * 0.03} width={W * 0.13} height={H * 0.09} rx={2} fill="rgba(180,140,90,0.75)" stroke={FD} strokeWidth={1} />)
+    if (has('plant') && Math.min(W, H) > 35) els.push(<circle key="ad-plant" cx={W * 0.92} cy={H * 0.9} r={Math.min(W, H) * 0.07} fill="#4E7A57" />)
+  }
+
+  if (type === 'bedroom' || type === 'master') {
+    const bw = type === 'master' ? 0.44 : 0.4
+    if (has('headboard') && W > 45) els.push(<rect key="ad-hb" x={W * 0.29} y={H * 0.12} width={W * (bw + 0.02)} height={H * 0.05} rx={3} fill={FD2} />)
+    if (has('bedside_lamp') && W > 45) els.push(<circle key="ad-lamp" cx={Math.max(4, W * 0.3 - 12)} cy={H * 0.14} r={3.5} fill="#E8C97A" />)
+    if (has('rug') && W > 55 && H > 55) els.push(<rect key="ad-rug" x={W * 0.28} y={H * 0.72} width={W * (bw + 0.08)} height={H * 0.18} rx={5} fill="rgba(201,161,74,0.3)" />)
+    if (has('bench') && W > 55 && H > 55) els.push(<rect key="ad-bench" x={W * 0.32} y={H * 0.71} width={W * bw} height={H * 0.06} rx={3} fill={FD} />)
+  }
+
+  if (type === 'kitchen') {
+    if (has('bar_stools') && W > 55 && H > 55) {
+      els.push(<circle key="ad-bs1" cx={W * 0.18} cy={H * 0.85} r={3.2} fill={FD} />)
+      els.push(<circle key="ad-bs2" cx={W * 0.3} cy={H * 0.85} r={3.2} fill={FD} />)
+    }
+    if (has('pendant_light') && W > 45) els.push(<circle key="ad-pl" cx={W * 0.5} cy={H * 0.06} r={4} fill="#E8C97A" stroke={FD} strokeWidth={1} />)
+  }
+
+  if (type === 'bath') {
+    if (has('bath_mat') && W > 35 && H > 45) els.push(<rect key="ad-mat" x={W * 0.08} y={H * 0.9} width={W * 0.28} height={H * 0.07} rx={3} fill="rgba(255,255,255,0.7)" />)
+    if (has('wall_shelf') && H > 45) els.push(<rect key="ad-shelf" x={W * 0.05} y={H * 0.05} width={W * 0.24} height={4} rx={2} fill={FD2} />)
+  }
+
+  if (type === 'garden') {
+    if (has('string_lights') && W > 70)
+      els.push(<path key="ad-sl" d={`M ${W * 0.1} ${H * 0.12} Q ${W * 0.5} ${H * 0.02} ${W * 0.9} ${H * 0.12}`} stroke="#E8C97A" strokeWidth={1.5} fill="none" strokeDasharray="1 7" strokeLinecap="round" />)
+    if (has('planters') && W > 60 && H > 50) {
+      els.push(<circle key="ad-pot1" cx={W * 0.15} cy={H * 0.85} r={5} fill="#8A6E4E" />)
+      els.push(<circle key="ad-pot2" cx={W * 0.85} cy={H * 0.85} r={5} fill="#8A6E4E" />)
+    }
+  }
+
+  if (type === 'pool' && has('umbrella') && W > 55) {
+    els.push(<circle key="ad-umb" cx={W * 0.85} cy={H * 0.18} r={10} fill="#C9A14A" opacity={0.9} />)
+    els.push(<circle key="ad-umb2" cx={W * 0.85} cy={H * 0.18} r={2.5} fill="#8A6E2E" />)
+  }
+
+  if (type === 'office') {
+    if (has('desk_lamp') && W > 45) els.push(<circle key="ad-lamp" cx={W * 0.78} cy={H * 0.14} r={3} fill="#E8C97A" />)
+    if (has('wall_art') && W > 45) els.push(<rect key="ad-art" x={W * 0.05} y={H * 0.05} width={W * 0.1} height={H * 0.12} rx={2} fill="rgba(180,140,90,0.75)" stroke={FD} strokeWidth={1} />)
+  }
+
+  if (type === 'veranda') {
+    if (has('planters') && W > 55) {
+      els.push(<circle key="ad-pot1" cx={W * 0.12} cy={H * 0.85} r={5} fill="#4E7A57" />)
+      els.push(<circle key="ad-pot2" cx={W * 0.88} cy={H * 0.85} r={5} fill="#4E7A57" />)
+    }
+    if (has('string_lights') && W > 65)
+      els.push(<path key="ad-sl" d={`M ${W * 0.1} ${H * 0.1} Q ${W * 0.5} 0 ${W * 0.9} ${H * 0.1}`} stroke="#E8C97A" strokeWidth={1.5} fill="none" strokeDasharray="1 7" strokeLinecap="round" />)
+  }
+
+  if (type === 'dsq') {
+    if (has('wall_shelf') && H > 45) els.push(<rect key="ad-shelf" x={W * 0.05} y={H * 0.06} width={W * 0.2} height={4} rx={2} fill={FD2} />)
+    if (has('curtains') && H > 45) els.push(<rect key="ad-curt" x={0} y={0} width={6} height={H * 0.3} fill="rgba(180,140,90,0.5)" />)
+  }
+
+  if (type === 'balcony') {
+    if (has('planters') && W > 45) {
+      els.push(<circle key="ad-pot1" cx={W * 0.1} cy={H * 0.8} r={4.5} fill="#4E7A57" />)
+      els.push(<circle key="ad-pot2" cx={W * 0.9} cy={H * 0.8} r={4.5} fill="#4E7A57" />)
+    }
+    if (has('string_lights') && W > 55)
+      els.push(<path key="ad-sl" d={`M ${W * 0.08} ${H * 0.08} Q ${W * 0.5} ${-H * 0.02} ${W * 0.92} ${H * 0.08}`} stroke="#E8C97A" strokeWidth={1.2} fill="none" strokeDasharray="1 6" strokeLinecap="round" />)
+  }
+
+  return els
+}
+
 // Ported from dream-home-builder-v4.jsx's RoomArt(). `finish` and
 // `colorIndex` are already resolved (catalog data + the room's own
 // choice); `furnitureTierIndex` is the 0-based position of the room's
@@ -167,6 +252,7 @@ function drawFurniture(type, W, H, tier, finishKey) {
 function RoomArt({ room, roomDef, cell, finish, colorIndex, furnitureTierIndex }) {
   const W = room.w * cell
   const H = room.h * cell
+  const rotation = room.rotation ?? 0
   const color = finish ? finish.colors[colorIndex]?.hex ?? finish.colors[0].hex : '#8B97A8'
   const r = rand(room.id * 7919 + 13)
   const els = []
@@ -311,6 +397,7 @@ function RoomArt({ room, roomDef, cell, finish, colorIndex, furnitureTierIndex }
 
   if (!['gate', 'borehole', 'garage'].includes(room.type)) {
     els.push(<g key="furniture">{drawFurniture(room.type, W, H, furnitureTierIndex, finish ? finish.key : null)}</g>)
+    els.push(<g key="addons">{drawAddons(room.type, W, H, room.addons)}</g>)
   }
 
   if (roomDef.indoor) {
@@ -336,11 +423,23 @@ function RoomArt({ room, roomDef, cell, finish, colorIndex, furnitureTierIndex }
         width: W - 3,
         height: H - 3,
         flexShrink: 0,
+        // A rotated room's corners extend past its own 0..W/0..H viewBox
+        // (e.g. a square at 45° reaches out to its diagonal) — visible
+        // overflow lets that bleed past the nominal footprint instead of
+        // being clipped mid-rotation. This is deliberate, not a leak: the
+        // room's grid footprint (x/y/w/h) never changes, only how far its
+        // drawn art visually reaches; see docs/phases/phase-8.md.
+        overflow: 'visible',
         borderRadius: roomDef.groupName === 'garden' ? 14 : 6,
         pointerEvents: 'none',
       }}
     >
-      {els}
+      {/* Every wall/texture/furniture element above is pushed into `els`
+          using the room's own unrotated W/H coordinate space — none of
+          that drawing code changes for rotation. Wrapping the whole batch
+          in one <g> rotated around the room's center is the only rotation
+          logic RoomArt needs. */}
+      <g transform={rotation ? `rotate(${rotation} ${W / 2} ${H / 2})` : undefined}>{els}</g>
     </svg>
   )
 }

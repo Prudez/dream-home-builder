@@ -21,6 +21,7 @@ export function replaySession(events, catalog, fallback = {}) {
   const stylePacksByKey = indexBy(catalog.stylePacks, 'key');
   const furnitureById = indexBy(catalog.furniture, 'id');
   const furnitureByType = groupBy(catalog.furniture, 'roomType');
+  const addonsByType = groupBy(catalog.furnitureAddons, 'roomType');
   const finishesByGroup = groupBy(catalog.finishes, 'groupName');
   const finishesByGroupKey = Object.fromEntries(
     Object.entries(finishesByGroup).map(([group, entries]) => [group, indexBy(entries, 'key')])
@@ -39,7 +40,7 @@ export function replaySession(events, catalog, fallback = {}) {
 
   function currentTotal() {
     if (!shellKey) return 0;
-    return totalCost(Array.from(rooms.values()), roomsByKey, finishesByGroupKey, furnitureById, shellsByKey, shellKey);
+    return totalCost(Array.from(rooms.values()), roomsByKey, finishesByGroupKey, furnitureById, shellsByKey, shellKey, addonsByType);
   }
 
   function finishMultOf(room) {
@@ -85,6 +86,7 @@ export function replaySession(events, catalog, fallback = {}) {
           finishKey,
           colorIndex,
           furnitureId,
+          addons: [],
         });
         markPeak();
         break;
@@ -130,6 +132,16 @@ export function replaySession(events, catalog, fallback = {}) {
         const oldCost = furnitureCostOf(room);
         room.furnitureId = payload?.furnitureId ?? null;
         if (furnitureCostOf(room) > oldCost) upgrades += 1;
+        markPeak();
+        break;
+      }
+      case 'addon_toggled': {
+        const room = rooms.get(payload?.roomId);
+        if (!room || !payload?.addonKey) break;
+        const set = new Set(room.addons ?? []);
+        if (payload?.on) set.add(payload.addonKey);
+        else set.delete(payload.addonKey);
+        room.addons = Array.from(set);
         markPeak();
         break;
       }

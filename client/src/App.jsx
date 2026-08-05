@@ -104,6 +104,7 @@ export default function App() {
         stylePackKey={shell.stylePack}
         finishes={catalog.finishes}
         furniture={catalog.furniture}
+        furnitureAddons={catalog.furnitureAddons}
         logEvent={logEvent}
         sessionId={session.id}
         onDesignFinished={(newDesign, newMatches) => {

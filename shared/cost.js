@@ -14,14 +14,28 @@ export function resolveFurniture(room, furnitureById) {
   return furnitureById[room.furnitureId] ?? null
 }
 
-export function roomCost(room, catalogRoomsByKey, finishesByGroupKey, furnitureById) {
+// Toggleable add-ons (Phase 9): independent of the base furniture tier, so
+// resolved separately rather than folded into resolveFurniture.
+export function resolveAddons(room, addonsByType) {
+  if (!room.addons || room.addons.length === 0) return []
+  const list = addonsByType?.[room.type] ?? []
+  if (list.length === 0) return []
+  const byKey = Object.fromEntries(list.map((a) => [a.addonKey, a]))
+  return room.addons.map((k) => byKey[k]).filter(Boolean)
+}
+
+export function addonsCost(room, addonsByType) {
+  return resolveAddons(room, addonsByType).reduce((s, a) => s + Number(a.price), 0)
+}
+
+export function roomCost(room, catalogRoomsByKey, finishesByGroupKey, furnitureById, addonsByType = {}) {
   const rt = catalogRoomsByKey[room.type]
   if (!rt) return 0
   const finish = resolveFinish(room, rt, finishesByGroupKey)
   const mult = finish ? Number(finish.mult) : 1
   const furniture = resolveFurniture(room, furnitureById)
   const furnitureCost = furniture ? Number(furniture.cost) : 0
-  return Math.round(Number(rt.perCellPrice) * room.w * room.h * mult) + furnitureCost
+  return Math.round(Number(rt.perCellPrice) * room.w * room.h * mult) + furnitureCost + addonsCost(room, addonsByType)
 }
 
 export function shellCost(shellsByKey, shellKey) {
@@ -29,8 +43,8 @@ export function shellCost(shellsByKey, shellKey) {
   return s ? Number(s.shellCost) : 0
 }
 
-export function totalCost(placedRooms, catalogRoomsByKey, finishesByGroupKey, furnitureById, shellsByKey, shellKey) {
-  const rooms = placedRooms.reduce((sum, r) => sum + roomCost(r, catalogRoomsByKey, finishesByGroupKey, furnitureById), 0)
+export function totalCost(placedRooms, catalogRoomsByKey, finishesByGroupKey, furnitureById, shellsByKey, shellKey, addonsByType = {}) {
+  const rooms = placedRooms.reduce((sum, r) => sum + roomCost(r, catalogRoomsByKey, finishesByGroupKey, furnitureById, addonsByType), 0)
   return shellCost(shellsByKey, shellKey) + rooms
 }
 

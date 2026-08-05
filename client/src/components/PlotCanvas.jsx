@@ -11,7 +11,7 @@ import {
   useDroppable,
 } from '@dnd-kit/core'
 import { T } from '../lib/theme.js'
-import { COLS, ROWS, computeCellSize, collides, clampToGrid } from '../lib/grid.js'
+import { COLS, ROWS, MIN_ROOM_CELL, computeCellSize, collides, clampToGrid } from '../lib/grid.js'
 import { roomCost, shellCost, totalCost, resolveFinish } from '../lib/cost.js'
 import { defaultFinishFor, defaultFurnitureFor } from '../../../shared/catalogDefaults.js'
 import { createDesign } from '../lib/api.js'
@@ -40,11 +40,11 @@ function stepperButtonStyle(disabled) {
   }
 }
 
-function ResizeStepper({ room, roomDef, onStep }) {
-  const atMinW = room.w <= roomDef.minW
-  const atMaxW = room.w >= roomDef.maxW
-  const atMinH = room.h <= roomDef.minH
-  const atMaxH = room.h >= roomDef.maxH
+function ResizeStepper({ room, onStep }) {
+  const atMinW = room.w <= MIN_ROOM_CELL
+  const atMaxW = room.w >= COLS - room.x
+  const atMinH = room.h <= MIN_ROOM_CELL
+  const atMaxH = room.h >= ROWS - room.y
   return (
     <div
       style={{
@@ -119,6 +119,7 @@ export default function PlotCanvas({
   stylePackKey,
   finishes,
   furniture,
+  furnitureAddons,
   logEvent,
   sessionId,
   onDesignFinished,
@@ -137,6 +138,7 @@ export default function PlotCanvas({
   const canvasRef = useRef(null)
   const nextIdRef = useRef(1)
   const resizeRef = useRef(null)
+  const rotateRef = useRef(null)
   const financingAskedRef = useRef(false)
 
   const roomsByKey = useMemo(() => Object.fromEntries(rooms.map((r) => [r.key, r])), [rooms])
@@ -169,6 +171,15 @@ export default function PlotCanvas({
     return map
   }, [furniture])
   const furnitureById = useMemo(() => Object.fromEntries(furniture.map((f) => [f.id, f])), [furniture])
+
+  const addonsByType = useMemo(() => {
+    const map = {}
+    for (const a of furnitureAddons ?? []) {
+      if (!map[a.roomType]) map[a.roomType] = []
+      map[a.roomType].push(a)
+    }
+    return map
+  }, [furnitureAddons])
 
   const { setNodeRef: setDroppableRef } = useDroppable({ id: 'plot' })
   // Stable identity across renders. A fresh callback-ref function every
@@ -207,7 +218,7 @@ export default function PlotCanvas({
   }, [])
 
   const visibleRooms = placed.filter((r) => r.floor === floor)
-  const total = totalCost(placed, roomsByKey, finishesByGroupKey, furnitureById, shellsByKey, shellKey)
+  const total = totalCost(placed, roomsByKey, finishesByGroupKey, furnitureById, shellsByKey, shellKey, addonsByType)
   const shellCostValue = shellCost(shellsByKey, shellKey)
 
   useEffect(() => {
@@ -229,7 +240,9 @@ export default function PlotCanvas({
     const data = event.active.data.current
     const canvasRect = canvasRef.current?.getBoundingClientRect()
     const { target, isOver } = computeTarget(event, canvasRect, cell, data.w, data.h)
-    const valid = Boolean(isOver && target && !collides(target.x, target.y, data.w, data.h, floor, data.roomId ?? null, placed))
+    const valid = Boolean(
+      isOver && target && !collides(target.x, target.y, data.w, data.h, floor, data.roomId ?? null, placed, data.rotation ?? 0)
+    )
     setDrag((d) => (d ? { ...d, gx: target?.x ?? d.gx, gy: target?.y ?? d.gy, over: isOver, valid } : d))
   }
 
@@ -237,7 +250,9 @@ export default function PlotCanvas({
     const data = event.active.data.current
     const canvasRect = canvasRef.current?.getBoundingClientRect()
     const { target, isOver } = computeTarget(event, canvasRect, cell, data.w, data.h)
-    const valid = Boolean(isOver && target && !collides(target.x, target.y, data.w, data.h, floor, data.roomId ?? null, placed))
+    const valid = Boolean(
+      isOver && target && !collides(target.x, target.y, data.w, data.h, floor, data.roomId ?? null, placed, data.rotation ?? 0)
+    )
 
     if (data.kind === 'palette') {
       if (isOver && valid) {
@@ -245,7 +260,10 @@ export default function PlotCanvas({
         const roomDef = roomsByKey[data.typeKey]
         const { finishKey, colorIndex } = defaultFinishFor(roomDef, activePack, finishesByGroup)
         const furnitureId = defaultFurnitureFor(data.typeKey, furnitureByType)
-        setPlaced((p) => [...p, { id, type: data.typeKey, x: target.x, y: target.y, w: data.w, h: data.h, floor, finishKey, colorIndex, furnitureId }])
+        setPlaced((p) => [
+          ...p,
+          { id, type: data.typeKey, x: target.x, y: target.y, w: data.w, h: data.h, floor, rotation: 0, finishKey, colorIndex, furnitureId, addons: [] },
+        ])
         setSelected(id)
         logEvent('room_added', { roomId: id, type: data.typeKey, w: data.w, h: data.h, floor })
       }
@@ -274,28 +292,68 @@ export default function PlotCanvas({
     resizeRef.current = { roomId, startW: room.w, startH: room.h, startClientX: e.clientX, startClientY: e.clientY }
   }
 
+  // Free rotation (Phase 8): dragging the rotate handle sets the room's
+  // rotation directly from the cursor's angle around the room's own center
+  // (in viewport pixels), not from a delta — so "grab and spin" tracks the
+  // cursor exactly. The handle itself lives outside RoomArt's rotation
+  // transform (see RoomArt.jsx), so it stays put at the room's unrotated
+  // corner regardless of the room's current angle.
+  function handleRotateStart(e, roomId) {
+    const room = placed.find((r) => r.id === roomId)
+    if (!room) return
+    rotateRef.current = { roomId, startRotation: room.rotation ?? 0 }
+  }
+
   useEffect(() => {
     function onMove(e) {
-      const r = resizeRef.current
-      if (!r) return
-      const room = placed.find((p) => p.id === r.roomId)
-      if (!room) return
-      const roomDef = roomsByKey[room.type]
-      let w = r.startW + Math.round((e.clientX - r.startClientX) / cell)
-      let h = r.startH + Math.round((e.clientY - r.startClientY) / cell)
-      w = Math.max(roomDef.minW, Math.min(roomDef.maxW, Math.min(w, COLS - room.x)))
-      h = Math.max(roomDef.minH, Math.min(roomDef.maxH, Math.min(h, ROWS - room.y)))
-      if ((w !== room.w || h !== room.h) && !collides(room.x, room.y, w, h, room.floor, room.id, placed)) {
-        setPlaced((p) => p.map((x) => (x.id === room.id ? { ...x, w, h } : x)))
+      const rr = resizeRef.current
+      if (rr) {
+        const room = placed.find((p) => p.id === rr.roomId)
+        if (room) {
+          let w = rr.startW + Math.round((e.clientX - rr.startClientX) / cell)
+          let h = rr.startH + Math.round((e.clientY - rr.startClientY) / cell)
+          w = Math.max(MIN_ROOM_CELL, Math.min(w, COLS - room.x))
+          h = Math.max(MIN_ROOM_CELL, Math.min(h, ROWS - room.y))
+          if ((w !== room.w || h !== room.h) && !collides(room.x, room.y, w, h, room.floor, room.id, placed, room.rotation ?? 0)) {
+            setPlaced((p) => p.map((x) => (x.id === room.id ? { ...x, w, h } : x)))
+          }
+        }
+      }
+
+      const rt = rotateRef.current
+      if (rt) {
+        const room = placed.find((p) => p.id === rt.roomId)
+        const canvasRect = canvasRef.current?.getBoundingClientRect()
+        if (room && canvasRect) {
+          const centerX = canvasRect.left + (room.x + room.w / 2) * cell
+          const centerY = canvasRect.top + (room.y + room.h / 2) * cell
+          const angleDeg = (Math.atan2(e.clientY - centerY, e.clientX - centerX) * 180) / Math.PI
+          // Shifted 90° so the handle's rest position (straight up from
+          // center) corresponds to rotation 0, matching where it's drawn.
+          const rotation = (((angleDeg + 90) % 360) + 360) % 360
+          if (!collides(room.x, room.y, room.w, room.h, room.floor, room.id, placed, rotation)) {
+            setPlaced((p) => p.map((x) => (x.id === room.id ? { ...x, rotation } : x)))
+          }
+        }
       }
     }
     function onUp() {
-      const r = resizeRef.current
+      const rr = resizeRef.current
       resizeRef.current = null
-      if (!r) return
-      const room = placed.find((p) => p.id === r.roomId)
-      if (room && (room.w !== r.startW || room.h !== r.startH)) {
-        logEvent('room_resized', { roomId: room.id, type: room.type, w: room.w, h: room.h })
+      if (rr) {
+        const room = placed.find((p) => p.id === rr.roomId)
+        if (room && (room.w !== rr.startW || room.h !== rr.startH)) {
+          logEvent('room_resized', { roomId: room.id, type: room.type, w: room.w, h: room.h })
+        }
+      }
+
+      const rt = rotateRef.current
+      rotateRef.current = null
+      if (rt) {
+        const room = placed.find((p) => p.id === rt.roomId)
+        if (room && Math.abs((room.rotation ?? 0) - rt.startRotation) > 0.01) {
+          logEvent('room_rotated', { roomId: room.id, type: room.type, rotation: room.rotation ?? 0 })
+        }
       }
     }
     window.addEventListener('pointermove', onMove)
@@ -304,17 +362,16 @@ export default function PlotCanvas({
       window.removeEventListener('pointermove', onMove)
       window.removeEventListener('pointerup', onUp)
     }
-  }, [placed, cell, roomsByKey, logEvent])
+  }, [placed, cell, logEvent])
 
   // Mobile fallback for dragging the resize handle — same clamp/collision
   // rules as the pointer-drag path above, applied in one-cell steps.
   function stepResize(roomId, dw, dh) {
     const room = placed.find((r) => r.id === roomId)
     if (!room) return
-    const roomDef = roomsByKey[room.type]
-    const w = Math.max(roomDef.minW, Math.min(roomDef.maxW, Math.min(room.w + dw, COLS - room.x)))
-    const h = Math.max(roomDef.minH, Math.min(roomDef.maxH, Math.min(room.h + dh, ROWS - room.y)))
-    if ((w === room.w && h === room.h) || collides(room.x, room.y, w, h, room.floor, room.id, placed)) return
+    const w = Math.max(MIN_ROOM_CELL, Math.min(room.w + dw, COLS - room.x))
+    const h = Math.max(MIN_ROOM_CELL, Math.min(room.h + dh, ROWS - room.y))
+    if ((w === room.w && h === room.h) || collides(room.x, room.y, w, h, room.floor, room.id, placed, room.rotation ?? 0)) return
     setPlaced((p) => p.map((x) => (x.id === room.id ? { ...x, w, h } : x)))
     logEvent('room_resized', { roomId: room.id, type: room.type, w, h })
   }
@@ -340,6 +397,30 @@ export default function PlotCanvas({
     logEvent('furniture_changed', { roomId: selected, type: room.type, furnitureId })
   }
 
+  // Toggleable add-ons (Phase 9): independent of the base furniture tier
+  // selected above. `on` and the resulting room cost are logged post-toggle
+  // (the new value, same convention as room_resized/room_rotated), so the
+  // event alone tells the full story without needing a replay to see price.
+  function handleToggleAddon(addonKey) {
+    const room = placed.find((r) => r.id === selected)
+    if (!room) return
+    const current = room.addons ?? []
+    const on = !current.includes(addonKey)
+    const nextAddons = on ? [...current, addonKey] : current.filter((k) => k !== addonKey)
+    const updatedRoom = { ...room, addons: nextAddons }
+    setPlaced((p) => p.map((r) => (r.id === selected ? updatedRoom : r)))
+    const addonDef = (addonsByType[room.type] ?? []).find((a) => a.addonKey === addonKey)
+    const resultingRoomCost = roomCost(updatedRoom, roomsByKey, finishesByGroupKey, furnitureById, addonsByType)
+    logEvent('addon_toggled', {
+      roomId: room.id,
+      type: room.type,
+      addonKey,
+      on,
+      addonPrice: addonDef ? Number(addonDef.price) : 0,
+      resultingRoomCost,
+    })
+  }
+
   function handleFinancingAnswer(answer) {
     setShowFinancing(false)
     logEvent('financing_answered', { answer })
@@ -357,9 +438,11 @@ export default function PlotCanvas({
         w: r.w,
         h: r.h,
         floor: r.floor,
+        rotation: r.rotation ?? 0,
         finishKey: r.finishKey ?? null,
         colorIndex: r.colorIndex ?? 0,
         furnitureId: r.furnitureId ?? null,
+        addons: r.addons ?? [],
       }))
       const { design, matches } = await createDesign({
         sessionId,
@@ -381,6 +464,7 @@ export default function PlotCanvas({
   const selectedRoomDef = selectedRoom ? roomsByKey[selectedRoom.type] : null
   const selectedFinishes = selectedRoomDef ? finishesByGroup[selectedRoomDef.groupName] ?? [] : []
   const selectedFurniture = selectedRoom ? furnitureByType[selectedRoom.type] ?? [] : []
+  const selectedAddons = selectedRoom ? addonsByType[selectedRoom.type] ?? [] : []
   const selectedActiveFinish = selectedRoom && selectedRoomDef ? resolveFinish(selectedRoom, selectedRoomDef, finishesByGroupKey) : null
 
   return (
@@ -490,7 +574,8 @@ export default function PlotCanvas({
                     isDragging={drag?.kind === 'room' && drag.roomId === r.id}
                     onSelect={setSelected}
                     onResizeStart={handleResizeStart}
-                    cost={roomCost(r, roomsByKey, finishesByGroupKey, furnitureById)}
+                    onRotateStart={handleRotateStart}
+                    cost={roomCost(r, roomsByKey, finishesByGroupKey, furnitureById, addonsByType)}
                   />
                 )
               })}
@@ -545,7 +630,7 @@ export default function PlotCanvas({
             )}
 
             {isMobile && selectedRoom && selectedRoomDef && (
-              <ResizeStepper room={selectedRoom} roomDef={selectedRoomDef} onStep={stepResize} />
+              <ResizeStepper room={selectedRoom} onStep={stepResize} />
             )}
 
             {selectedRoom && selectedRoomDef && (
@@ -554,11 +639,13 @@ export default function PlotCanvas({
                 roomDef={selectedRoomDef}
                 finishes={selectedFinishes}
                 furniture={selectedFurniture}
+                addons={selectedAddons}
                 activeFinish={selectedActiveFinish}
                 colorIndex={selectedRoom.colorIndex ?? 0}
                 onSelectFinish={handleSelectFinish}
                 onSelectColor={handleSelectColor}
                 onSelectFurniture={handleSelectFurniture}
+                onToggleAddon={handleToggleAddon}
               />
             )}
           </div>

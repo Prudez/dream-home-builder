@@ -23,8 +23,8 @@ import { replaySession } from './replay.js';
 //   Furnishing spend >= KES 800K ............................ 10
 //   Aspiration (>=2 upgrades) ............................... 10
 //   Premium flag (has a pool) ............................... 10
-//   Lifestyle flags (entertainer, pool loungers, bathtub,
-//     furnished DSQ, executive study) ........... 5 each, capped at 15
+//   Lifestyle flags (entertainer, pool loungers, bathtub, furnished DSQ,
+//     executive study, detail-oriented add-ons) ... 5 each, capped at 15
 //   Price sensitivity penalty (>=2 shrinks+removals) ....... -15
 //
 // The no-penalty maximum sums to exactly 100. Final score is clamped to
@@ -52,6 +52,7 @@ export function computeLeadSignals({ design, events, catalog }) {
   const roomsByKey = indexBy(catalog.rooms, 'key');
   const furnitureById = indexBy(catalog.furniture, 'id');
   const furnitureByType = groupBy(catalog.furniture, 'roomType');
+  const addonsByType = groupBy(catalog.furnitureAddons, 'roomType');
   const finishesByGroup = groupBy(catalog.finishes, 'groupName');
   const finishesByGroupKey = Object.fromEntries(
     Object.entries(finishesByGroup).map(([group, entries]) => [group, indexBy(entries, 'key')])
@@ -153,6 +154,26 @@ export function computeLeadSignals({ design, events, catalog }) {
   const hasBalcony = has('balcony');
   if (hasBalcony) signals.push({ key: 'outdoor_priority', label: 'Lifestyle', value: 'Balcony placed → outdoor space priority' });
 
+  // Detail-oriented signal (Phase 9): a player who switches on 3+ optional
+  // furniture add-ons in a single room is engaging past the required
+  // choices — same "plain-language lifestyle flag" pattern as the signals
+  // above, so it also counts toward lifestyleFlagCount below.
+  const detailRoom = rooms
+    .map((r) => ({ room: r, addons: Array.isArray(r.addons) ? r.addons : [] }))
+    .filter((x) => x.addons.length >= 3)
+    .sort((a, b) => b.addons.length - a.addons.length)[0];
+  const detailOriented = Boolean(detailRoom);
+  if (detailRoom) {
+    const addonNames = indexBy(addonsByType[detailRoom.room.type] ?? [], 'addonKey');
+    const names = detailRoom.addons.map((k) => addonNames[k]?.name ?? k).join(', ');
+    const roomName = roomsByKey[detailRoom.room.type]?.name ?? detailRoom.room.type;
+    signals.push({
+      key: 'detail_oriented',
+      label: 'Engagement signal',
+      value: `${names} on ${roomName} → detail-oriented, high engagement`,
+    });
+  }
+
   furnitureSpend = rooms.reduce((s, r) => {
     const f = r.furnitureId != null ? furnitureById[r.furnitureId] : null;
     return s + (f ? Number(f.cost) : 0);
@@ -181,7 +202,7 @@ export function computeLeadSignals({ design, events, catalog }) {
   const furnishingPoints = furnitureSpend >= 800000 ? 10 : 0;
   const aspirationPoints = upgrades >= 2 ? 10 : 0;
   const premiumPoints = hasPool ? 10 : 0;
-  const lifestyleFlagCount = [entertainer, poolLoungers, bathtub, furnishedDsq, executiveStudy].filter(Boolean).length;
+  const lifestyleFlagCount = [entertainer, poolLoungers, bathtub, furnishedDsq, executiveStudy, detailOriented].filter(Boolean).length;
   const lifestylePoints = Math.min(15, lifestyleFlagCount * 5);
   const pricePenalty = priceSensitive ? 15 : 0;
 

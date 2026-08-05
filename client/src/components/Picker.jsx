@@ -65,9 +65,22 @@ function TexturePreview({ texture, hex }) {
   )
 }
 
-export default function Picker({ room, roomDef, finishes, furniture, activeFinish, colorIndex, onSelectFinish, onSelectColor, onSelectFurniture }) {
+export default function Picker({
+  room,
+  roomDef,
+  finishes,
+  furniture,
+  addons,
+  activeFinish,
+  colorIndex,
+  onSelectFinish,
+  onSelectColor,
+  onSelectFurniture,
+  onToggleAddon,
+}) {
   const hasFinishes = finishes.length > 0
   const hasFurniture = furniture.length > 0
+  const hasAddons = (addons?.length ?? 0) > 0
   const [tab, setTab] = useState(hasFinishes ? 'finish' : 'furniture')
   const pickerRef = useRef(null)
 
@@ -80,7 +93,7 @@ export default function Picker({ room, roomDef, finishes, furniture, activeFinis
     return () => clearTimeout(t)
   }, [room.id])
 
-  if (!hasFinishes && !hasFurniture) return null
+  if (!hasFinishes && !hasFurniture && !hasAddons) return null
 
   return (
     <div ref={pickerRef} style={{ marginTop: 12, background: T.white, border: `1.5px solid ${T.border}`, borderRadius: 10, padding: '14px 16px' }}>
@@ -92,7 +105,7 @@ export default function Picker({ room, roomDef, finishes, furniture, activeFinis
               Finishes
             </button>
           )}
-          {hasFurniture && (
+          {(hasFurniture || hasAddons) && (
             <button type="button" onClick={() => setTab('furniture')} style={tabButtonStyle(tab === 'furniture')}>
               Furniture
             </button>
@@ -114,6 +127,46 @@ export default function Picker({ room, roomDef, finishes, furniture, activeFinis
               </div>
             )
           })}
+        </div>
+      )}
+
+      {tab === 'furniture' && hasAddons && (
+        <div style={{ marginTop: hasFurniture ? 14 : 0 }}>
+          <div style={{ fontSize: 10.5, letterSpacing: '0.12em', textTransform: 'uppercase', fontWeight: 800, color: T.slate, marginBottom: 8 }}>
+            Add-ons
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {addons.map((a) => {
+              const checked = (room.addons ?? []).includes(a.addonKey)
+              return (
+                <label
+                  key={a.addonKey}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 10,
+                    minHeight: 44,
+                    padding: '6px 10px',
+                    border: `1.5px solid ${checked ? T.gold : '#E4E8EE'}`,
+                    borderRadius: 8,
+                    background: checked ? '#FDF9F0' : T.white,
+                    cursor: 'pointer',
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={() => onToggleAddon(a.addonKey)}
+                    style={{ width: 18, height: 18, cursor: 'pointer', flexShrink: 0 }}
+                  />
+                  <span style={{ fontSize: 12, fontWeight: 700, color: T.navy, flex: 1 }}>{a.name}</span>
+                  <span style={{ fontSize: 11, color: Number(a.price) > 0 ? T.goldDeep : T.slate, fontWeight: 700 }}>
+                    {Number(a.price) > 0 ? `+${fmtKES(Number(a.price))}` : 'included'}
+                  </span>
+                </label>
+              )
+            })}
+          </div>
         </div>
       )}
 

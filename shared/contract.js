@@ -53,6 +53,8 @@ export const EVENT_TYPES = [
   'design_finished',
   'lead_submitted',
   'session_abandoned',
+  'room_rotated',
+  'addon_toggled',
 ];
 
 // Kenyan mobile number formats: +254/254/0 prefix followed by a Safaricom/
@@ -67,6 +69,18 @@ export function isKenyanPhone(input) {
 
 function isNonEmptyArray(v) {
   return Array.isArray(v) && v.length > 0;
+}
+
+// Toggleable furniture add-ons (Phase 9): an array of addon_key strings,
+// each naming a row in catalog_furniture_addons for the room's type.
+function isStringArray(v) {
+  return Array.isArray(v) && v.every((x) => typeof x === 'string' && x.trim().length > 0);
+}
+
+// Free rotation (Phase 8): degrees, not snapped to any increment, so a
+// plain finite-number range check rather than isNonNegativeInt.
+function isRotationDegrees(v) {
+  return typeof v === 'number' && Number.isFinite(v) && v >= 0 && v < 360;
 }
 
 function validateEventEntry(entry, index) {
@@ -107,6 +121,12 @@ function validateDesignRoomEntry(entry, index) {
   }
   if (entry.furnitureId != null && !isPositiveInt(entry.furnitureId)) {
     errors.push(`rooms[${index}].furnitureId must be a positive integer or null`);
+  }
+  if (entry.rotation != null && !isRotationDegrees(entry.rotation)) {
+    errors.push(`rooms[${index}].rotation must be a number in [0, 360) when present`);
+  }
+  if (entry.addons != null && !isStringArray(entry.addons)) {
+    errors.push(`rooms[${index}].addons must be an array of strings when present`);
   }
   return errors;
 }

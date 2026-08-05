@@ -3,10 +3,10 @@ import { T } from '../lib/theme.js'
 import { fmtKES } from '../lib/cost.js'
 import RoomArt from './RoomArt.jsx'
 
-export default function RoomBlock({ room, roomDef, finish, colorIndex, furnitureTierIndex, cell, selected, isDragging, onSelect, onResizeStart, cost }) {
+export default function RoomBlock({ room, roomDef, finish, colorIndex, furnitureTierIndex, cell, selected, isDragging, onSelect, onResizeStart, onRotateStart, cost }) {
   const { attributes, listeners, setNodeRef } = useDraggable({
     id: `room-${room.id}`,
-    data: { kind: 'room', roomId: room.id, w: room.w, h: room.h },
+    data: { kind: 'room', roomId: room.id, w: room.w, h: room.h, rotation: room.rotation ?? 0 },
   })
 
   return (
@@ -36,12 +36,13 @@ export default function RoomBlock({ room, roomDef, finish, colorIndex, furniture
         display: 'flex',
         alignItems: 'flex-end',
         justifyContent: 'center',
-        overflow: 'hidden',
       }}
     >
       <RoomArt room={room} roomDef={roomDef} cell={cell} finish={finish} colorIndex={colorIndex} furnitureTierIndex={furnitureTierIndex} />
       <span
         style={{
+          display: 'inline-block',
+          maxWidth: room.w * cell - 3,
           background: 'rgba(10,30,60,0.75)',
           color: '#FFF',
           fontSize: Math.max(8, cell * 0.19),
@@ -50,32 +51,73 @@ export default function RoomBlock({ room, roomDef, finish, colorIndex, furniture
           borderRadius: 4,
           marginBottom: 3,
           whiteSpace: 'nowrap',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          boxSizing: 'border-box',
           pointerEvents: 'none',
         }}
       >
         {roomDef.icon} {roomDef.name} · {room.w * 2}×{room.h * 2}m · {fmtKES(cost)}
       </span>
       {selected && (
-        <div
-          onPointerDown={(e) => {
-            e.stopPropagation()
-            e.preventDefault()
-            onResizeStart(e, room.id)
-          }}
-          style={{
-            position: 'absolute',
-            right: -8,
-            bottom: -8,
-            width: 28,
-            height: 28,
-            background: T.gold,
-            border: `2px solid ${T.white}`,
-            borderRadius: 7,
-            cursor: 'nwse-resize',
-            touchAction: 'none',
-            boxShadow: '0 1px 4px rgba(0,0,0,0.3)',
-          }}
-        />
+        <>
+          <div
+            onPointerDown={(e) => {
+              e.stopPropagation()
+              e.preventDefault()
+              onResizeStart(e, room.id)
+            }}
+            style={{
+              position: 'absolute',
+              right: -8,
+              bottom: -8,
+              width: 28,
+              height: 28,
+              background: T.gold,
+              border: `2px solid ${T.white}`,
+              borderRadius: 7,
+              cursor: 'nwse-resize',
+              touchAction: 'none',
+              boxShadow: '0 1px 4px rgba(0,0,0,0.3)',
+            }}
+          />
+          {/* Rotate handle — deliberately outside RoomArt's <g> rotation
+              transform (see RoomArt.jsx), so it stays fixed at the room's
+              unrotated top-center regardless of the room's current angle.
+              Dragging it sets rotation directly from the cursor's angle
+              around the room's center; see handleRotateStart in
+              PlotCanvas.jsx. */}
+          <div
+            onPointerDown={(e) => {
+              e.stopPropagation()
+              e.preventDefault()
+              onRotateStart(e, room.id)
+            }}
+            title="Drag to rotate"
+            style={{
+              position: 'absolute',
+              top: -28,
+              left: '50%',
+              transform: 'translateX(-50%)',
+              width: 26,
+              height: 26,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: T.navy,
+              color: T.white,
+              fontSize: 14,
+              lineHeight: 1,
+              border: `2px solid ${T.white}`,
+              borderRadius: '50%',
+              cursor: 'grab',
+              touchAction: 'none',
+              boxShadow: '0 1px 4px rgba(0,0,0,0.3)',
+            }}
+          >
+            ⟳
+          </div>
+        </>
       )}
     </div>
   )

@@ -3,11 +3,10 @@ import { query } from '../db.js';
 // Shared by GET /api/catalog and POST /api/designs — the design-save route
 // needs the exact same lookup data to recompute totals/profile server-side.
 export async function loadCatalog() {
-  const [rooms, stylePacks, shells, finishes, furniture] = await Promise.all([
+  const [rooms, stylePacks, shells, finishes, furniture, furnitureAddons] = await Promise.all([
     query(
       `SELECT key, name, icon, per_cell_price AS "perCellPrice",
               default_w AS "defaultW", default_h AS "defaultH",
-              min_w AS "minW", min_h AS "minH", max_w AS "maxW", max_h AS "maxH",
               group_name AS "groupName", ground_only AS "groundOnly", indoor,
               upper_only AS "upperOnly"
        FROM dreamhome.catalog_rooms ORDER BY sort_order`
@@ -31,6 +30,10 @@ export async function loadCatalog() {
       `SELECT id, room_type AS "roomType", name, cost, description
        FROM dreamhome.catalog_furniture ORDER BY room_type, sort_order`
     ),
+    query(
+      `SELECT id, room_type AS "roomType", addon_key AS "addonKey", name, price
+       FROM dreamhome.catalog_furniture_addons ORDER BY room_type, sort_order`
+    ),
   ]);
 
   return {
@@ -39,5 +42,6 @@ export async function loadCatalog() {
     shells: shells.rows,
     finishes: finishes.rows,
     furniture: furniture.rows,
+    furnitureAddons: furnitureAddons.rows,
   };
 }

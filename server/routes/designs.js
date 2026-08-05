@@ -34,13 +34,14 @@ router.post('/', async (req, res, next) => {
     const shellsByKey = indexBy(catalog.shells, 'key');
     const furnitureById = indexBy(catalog.furniture, 'id');
     const furnitureByRoomType = groupBy(catalog.furniture, 'roomType');
+    const addonsByRoomType = groupBy(catalog.furnitureAddons, 'roomType');
     const finishesByGroup = groupBy(catalog.finishes, 'groupName');
     const finishesByGroupKey = Object.fromEntries(
       Object.entries(finishesByGroup).map(([group, entries]) => [group, indexBy(entries, 'key')])
     );
 
     // Recomputed server-side — a client-sent total is never trusted.
-    const total = totalCost(rooms, roomsByKey, finishesByGroupKey, furnitureById, shellsByKey, shellKey);
+    const total = totalCost(rooms, roomsByKey, finishesByGroupKey, furnitureById, shellsByKey, shellKey, addonsByRoomType);
     const profileLabel = computeProfileLabel({ rooms, floors, stylePack, furnitureByRoomType });
 
     const listingsResult = await query(
