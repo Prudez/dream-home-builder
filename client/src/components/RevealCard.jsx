@@ -9,7 +9,7 @@ import ElevationView from './ElevationView.jsx'
 
 const MINI_CELL = 9
 
-export default function RevealCard({ catalog, shell, design, matches, sessionId, logEvent, onClose }) {
+export default function RevealCard({ catalog, shell, design, matches, sessionId, logEvent, onClose, styleKey }) {
   const [whatsapp, setWhatsapp] = useState('')
   const [sending, setSending] = useState(false)
   const [sent, setSent] = useState(false)
@@ -188,6 +188,7 @@ export default function RevealCard({ catalog, shell, design, matches, sessionId,
                     finish={finish}
                     colorIndex={r.colorIndex ?? 0}
                     furnitureTierIndex={furnitureTierIndex}
+                    styleKey={styleKey}
                   />
                 </div>
               )

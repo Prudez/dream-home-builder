@@ -6,6 +6,7 @@ import ShellStage from './components/ShellStage.jsx'
 import PlotCanvas from './components/PlotCanvas.jsx'
 import RevealCard from './components/RevealCard.jsx'
 import { T } from './lib/theme.js'
+import { DEFAULT_STYLE_KEY } from './lib/roomStyles/index.js'
 
 function detectDevice() {
   return /Mobi|Android/i.test(navigator.userAgent) ? 'mobile' : 'desktop'
@@ -22,6 +23,12 @@ export default function App() {
   const [design, setDesign] = useState(null)
   const [matches, setMatches] = useState([])
   const [showReveal, setShowReveal] = useState(false)
+
+  // Illustration style (Phase 10): a pure rendering preference, switchable
+  // live from PlotCanvas's always-visible switcher. Not tied to the shell
+  // stage or any player design choice, and never sent to the server as part
+  // of a room's data — only style_changed events record that it changed.
+  const [styleKey, setStyleKey] = useState(DEFAULT_STYLE_KEY)
 
   const stageRef = useRef('consent')
   const designRef = useRef(null)
@@ -77,6 +84,12 @@ export default function App() {
     setShell({ shellKey, floors, stylePack })
   }
 
+  function handleStyleChange(newStyleKey) {
+    if (newStyleKey === styleKey) return
+    setStyleKey(newStyleKey)
+    logEvent('style_changed', { styleKey: newStyleKey })
+  }
+
   if (!session) {
     return <ConsentGate onStart={startSession} error={sessionError} />
   }
@@ -107,6 +120,8 @@ export default function App() {
         furnitureAddons={catalog.furnitureAddons}
         logEvent={logEvent}
         sessionId={session.id}
+        styleKey={styleKey}
+        onStyleChange={handleStyleChange}
         onDesignFinished={(newDesign, newMatches) => {
           setDesign(newDesign)
           setMatches(newMatches)
@@ -122,6 +137,7 @@ export default function App() {
           sessionId={session.id}
           logEvent={logEvent}
           onClose={() => setShowReveal(false)}
+          styleKey={styleKey}
         />
       )}
     </>

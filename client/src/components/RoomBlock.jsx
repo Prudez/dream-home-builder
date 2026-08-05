@@ -3,7 +3,7 @@ import { T } from '../lib/theme.js'
 import { fmtKES } from '../lib/cost.js'
 import RoomArt from './RoomArt.jsx'
 
-export default function RoomBlock({ room, roomDef, finish, colorIndex, furnitureTierIndex, cell, selected, isDragging, onSelect, onResizeStart, onRotateStart, cost }) {
+export default function RoomBlock({ room, roomDef, finish, colorIndex, furnitureTierIndex, styleKey, cell, selected, isDragging, onSelect, onResizeStart, onRotateStart, cost }) {
   const { attributes, listeners, setNodeRef } = useDraggable({
     id: `room-${room.id}`,
     data: { kind: 'room', roomId: room.id, w: room.w, h: room.h, rotation: room.rotation ?? 0 },
@@ -38,7 +38,7 @@ export default function RoomBlock({ room, roomDef, finish, colorIndex, furniture
         justifyContent: 'center',
       }}
     >
-      <RoomArt room={room} roomDef={roomDef} cell={cell} finish={finish} colorIndex={colorIndex} furnitureTierIndex={furnitureTierIndex} />
+      <RoomArt room={room} roomDef={roomDef} cell={cell} finish={finish} colorIndex={colorIndex} furnitureTierIndex={furnitureTierIndex} styleKey={styleKey} />
       <span
         style={{
           display: 'inline-block',

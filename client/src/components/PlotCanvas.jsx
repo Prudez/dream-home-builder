@@ -16,6 +16,7 @@ import { roomCost, shellCost, totalCost, resolveFinish } from '../lib/cost.js'
 import { defaultFinishFor, defaultFurnitureFor } from '../../../shared/catalogDefaults.js'
 import { createDesign } from '../lib/api.js'
 import { useIsMobile } from '../hooks/useIsMobile.js'
+import { STYLE_LIST } from '../lib/roomStyles/index.js'
 import Palette from './Palette.jsx'
 import RoomBlock from './RoomBlock.jsx'
 import CostTicker from './CostTicker.jsx'
@@ -82,6 +83,44 @@ function ResizeStepper({ room, onStep }) {
   )
 }
 
+// Illustration style switcher (Phase 10) — small, always visible near the
+// canvas regardless of floor count or selection state. Deliberately not
+// part of the Shell stage or any other player design choice: switching
+// styles only changes how the player's existing rooms are drawn, never what
+// they are, so it lives entirely in the build stage as a rendering
+// preference the player can flip at any time.
+function StyleSwitcher({ styleKey, onChange }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10, flexWrap: 'wrap' }}>
+      <span style={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', color: T.slate, marginRight: 2 }}>
+        Style
+      </span>
+      {STYLE_LIST.map((s) => (
+        <button
+          key={s.key}
+          type="button"
+          onClick={() => onChange(s.key)}
+          style={{
+            background: styleKey === s.key ? T.navy : 'transparent',
+            color: styleKey === s.key ? T.white : T.navy,
+            border: `1px solid ${styleKey === s.key ? T.navy : T.border}`,
+            fontWeight: 800,
+            textTransform: 'uppercase',
+            letterSpacing: '0.06em',
+            fontSize: 11,
+            padding: '7px 14px',
+            minHeight: 36,
+            borderRadius: 6,
+            cursor: 'pointer',
+          }}
+        >
+          {s.name}
+        </button>
+      ))}
+    </div>
+  )
+}
+
 const FLOOR_NAMES = ['Ground floor', 'First floor', 'Second floor']
 
 // Hoisted to a stable module-level reference. dnd-kit's useSensor/useSensors
@@ -122,6 +161,8 @@ export default function PlotCanvas({
   furnitureAddons,
   logEvent,
   sessionId,
+  styleKey,
+  onStyleChange,
   onDesignFinished,
 }) {
   const [placed, setPlaced] = useState([])
@@ -488,6 +529,8 @@ export default function PlotCanvas({
           <Palette rooms={rooms} floor={floor} />
 
           <div style={{ flex: '3 1 450px', minWidth: 300 }}>
+            <StyleSwitcher styleKey={styleKey} onChange={onStyleChange} />
+
             {floorsCount > 1 && (
               <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
                 {Array.from({ length: floorsCount }).map((_, i) => (
@@ -569,6 +612,7 @@ export default function PlotCanvas({
                     finish={finish}
                     colorIndex={colorIndex}
                     furnitureTierIndex={furnitureTierIndex}
+                    styleKey={styleKey}
                     cell={cell}
                     selected={selected === r.id}
                     isDragging={drag?.kind === 'room' && drag.roomId === r.id}

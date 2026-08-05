@@ -55,6 +55,7 @@ export const EVENT_TYPES = [
   'session_abandoned',
   'room_rotated',
   'addon_toggled',
+  'style_changed',
 ];
 
 // Kenyan mobile number formats: +254/254/0 prefix followed by a Safaricom/
