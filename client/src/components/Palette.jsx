@@ -44,10 +44,12 @@ function PaletteChip({ room, disabled, isMobile }) {
 
 export default function Palette({ rooms, floor }) {
   const isMobile = useIsMobile()
-  // upperOnly rooms (e.g. balcony) are absent from the ground-floor palette
-  // entirely, unlike groundOnly rooms which stay visible but disabled —
-  // a balcony can never be built on the ground floor, so offering it there
-  // (even greyed out) would be misleading.
+  // upperOnly rooms are absent from the ground-floor palette entirely,
+  // unlike groundOnly rooms which stay visible but disabled — a room whose
+  // catalog row can never be built on the ground floor shouldn't be offered
+  // there even greyed out. No current room type sets upperOnly (balcony did
+  // until migration 009 lifted that restriction); the mechanism stays in
+  // place for any future room type that needs it.
   const visibleRooms = rooms.filter((room) => !(room.upperOnly && floor === 0))
 
   return (
