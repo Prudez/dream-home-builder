@@ -8,6 +8,7 @@ export default function RoomBlock({ room, roomDef, finish, colorIndex, furniture
     id: `room-${room.id}`,
     data: { kind: 'room', roomId: room.id, w: room.w, h: room.h, rotation: room.rotation ?? 0 },
   })
+  const rotation = room.rotation ?? 0
 
   return (
     <div
@@ -30,9 +31,7 @@ export default function RoomBlock({ room, roomDef, finish, colorIndex, furniture
         userSelect: 'none',
         touchAction: 'none',
         opacity: isDragging ? 0.35 : 1,
-        boxShadow: selected
-          ? `0 0 0 2.5px ${T.gold}, 0 4px 10px rgba(10,30,60,0.2)`
-          : '0 2px 6px rgba(10,30,60,0.12)',
+        boxShadow: '0 2px 6px rgba(10,30,60,0.12)',
         display: 'flex',
         alignItems: 'flex-end',
         justifyContent: 'center',
@@ -61,26 +60,46 @@ export default function RoomBlock({ room, roomDef, finish, colorIndex, furniture
       </span>
       {selected && (
         <>
+          {/* Selection outline + resize handle rotate together with the room's
+              drawn content (RoomArt's own <g> rotation) as one visual unit —
+              this overlay shares the same box and rotation origin (center)
+              as that <g>, so the gold ring and resize corner stay glued to
+              the rotated shape instead of the room's unrotated footprint.
+              pointerEvents is off on the overlay itself (it must not steal
+              the drag surface) and re-enabled only on the resize handle. */}
           <div
-            onPointerDown={(e) => {
-              e.stopPropagation()
-              e.preventDefault()
-              onResizeStart(e, room.id)
-            }}
             style={{
               position: 'absolute',
-              right: -8,
-              bottom: -8,
-              width: 28,
-              height: 28,
-              background: T.gold,
-              border: `2px solid ${T.white}`,
-              borderRadius: 7,
-              cursor: 'nwse-resize',
-              touchAction: 'none',
-              boxShadow: '0 1px 4px rgba(0,0,0,0.3)',
+              inset: 0,
+              transform: rotation ? `rotate(${rotation}deg)` : undefined,
+              transformOrigin: '50% 50%',
+              borderRadius: roomDef.groupName === 'garden' ? 14 : 6,
+              boxShadow: `0 0 0 2.5px ${T.gold}, 0 4px 10px rgba(10,30,60,0.2)`,
+              pointerEvents: 'none',
             }}
-          />
+          >
+            <div
+              onPointerDown={(e) => {
+                e.stopPropagation()
+                e.preventDefault()
+                onResizeStart(e, room.id)
+              }}
+              style={{
+                position: 'absolute',
+                right: -8,
+                bottom: -8,
+                width: 28,
+                height: 28,
+                background: T.gold,
+                border: `2px solid ${T.white}`,
+                borderRadius: 7,
+                cursor: 'nwse-resize',
+                touchAction: 'none',
+                boxShadow: '0 1px 4px rgba(0,0,0,0.3)',
+                pointerEvents: 'auto',
+              }}
+            />
+          </div>
           {/* Rotate handle — deliberately outside RoomArt's <g> rotation
               transform (see RoomArt.jsx), so it stays fixed at the room's
               unrotated top-center regardless of the room's current angle.
